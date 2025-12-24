@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     "drf_spectacular_sidecar",
     "gallery",
     "nft",
+    "legacy",
 ]
 
 MIDDLEWARE = [

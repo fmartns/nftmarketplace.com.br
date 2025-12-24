@@ -23,6 +23,8 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+from accounts.views.auth import CustomTokenObtainPairView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -34,8 +36,12 @@ urlpatterns = [
     path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("accounts/", include("accounts.urls")),
     path("collections/", include("gallery.urls")),
+    path("legacy/", include("legacy.urls")),
     path("", include("banners.urls")),
     path("", include("nft.urls")),
     path("", include("health.urls")),
+    path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
     path("", RedirectView.as_view(url="/docs/", permanent=False)),
 ]

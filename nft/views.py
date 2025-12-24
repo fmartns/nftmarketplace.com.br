@@ -235,11 +235,11 @@ class TrendingByAccessAPI(APIView):
         # Get top items by access count in the last N days
         top_items = (
             NFTItem.objects.filter(
-                access_records__accessed_at__gte=cutoff,
+                accesses__accessed_at__gte=cutoff,
             )
             .annotate(
-                access_count=Count("access_records"),
-                last_access=Max("access_records__accessed_at"),
+                access_count=Count("accesses"),
+                last_access=Max("accesses__accessed_at"),
             )
             .filter(access_count__gt=0)
             .order_by("-access_count", "-last_access")[:limit]

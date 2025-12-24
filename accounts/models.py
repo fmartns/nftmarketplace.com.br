@@ -3,6 +3,14 @@ from django.db import models
 from django.core.validators import RegexValidator
 
 
+class OptionalRegexValidator(RegexValidator):
+    """Validador que só valida se o valor não estiver vazio"""
+    
+    def __call__(self, value):
+        if value:
+            super().__call__(value)
+
+
 class User(AbstractUser):
     """
     Modelo customizado de usuário com dados brasileiros e integração MetaMask
@@ -15,7 +23,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         validators=[
-            RegexValidator(
+            OptionalRegexValidator(
                 regex=r"^\d{3}\.\d{3}\.\d{3}-\d{2}$",
                 message="CPF deve estar no formato XXX.XXX.XXX-XX",
             )
@@ -28,7 +36,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         validators=[
-            RegexValidator(
+            OptionalRegexValidator(
                 regex=r"^\(\d{2}\)\s\d{4,5}-\d{4}$",
                 message="Telefone deve estar no formato (XX) XXXXX-XXXX",
             )
@@ -67,7 +75,7 @@ class User(AbstractUser):
         null=True,
         blank=True,
         validators=[
-            RegexValidator(
+            OptionalRegexValidator(
                 regex=r"^0x[a-fA-F0-9]{40}$",
                 message="Endereço da carteira deve ser um endereço Ethereum válido",
             )
@@ -78,7 +86,7 @@ class User(AbstractUser):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     class Meta:
         db_table = "auth_user"
         verbose_name = "Usuário"
