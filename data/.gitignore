@@ -1,0 +1,5 @@
+# Ignorar todos os dados, mas manter a estrutura de diretórios
+*
+!.gitignore
+
+

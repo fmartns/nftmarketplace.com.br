@@ -25,6 +25,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Garantir permissões de execução para os binários do node_modules
+RUN chmod +x node_modules/.bin/* || true
 ENV VITE_API_BASE_URL="http://localhost:8001"
 EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host"]
