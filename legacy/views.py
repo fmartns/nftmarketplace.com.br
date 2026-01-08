@@ -36,6 +36,7 @@ class LegacyItemDetail(APIView):
                     "last_price": item_data["last_price"],
                     "average_price": item_data["average_price"],
                     "available_offers": item_data["available_offers"],
+                    "price_history": item_data["price_history"],
                 }
             )
             
@@ -86,6 +87,7 @@ class LegacyItemCreate(APIView):
                     "last_price": item_data["last_price"],
                     "average_price": item_data["average_price"],
                     "available_offers": item_data["available_offers"],
+                    "price_history": item_data["price_history"],
                 }
             )
             

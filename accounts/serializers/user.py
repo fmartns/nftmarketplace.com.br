@@ -36,6 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id",
+            "nick_habbo",
             "habbo_validado",
             "perfil_completo",
             "is_staff",
@@ -104,9 +105,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
 
     def validate_nick_habbo(self, value):
-        """Valida se o nick do Habbo já não está em uso"""
+        """
+        Valida se o nick do Habbo já não está em uso.
+        Um nick do Habbo só pode estar associado a um usuário por vez.
+        """
         if value and User.objects.filter(nick_habbo=value).exists():
             raise serializers.ValidationError(
-                "Este nick do Habbo já está associado a outro usuário."
+                "Este nick do Habbo já está associado a outro usuário. Um nick só pode estar vinculado a um usuário por vez."
             )
         return value

@@ -9,6 +9,7 @@ from .habbo import (
     HabboUnlinkView,
     HabboValidationStatusView,
     HabboValidationHistoryView,
+    HabboConfirmView,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "HabboUnlinkView",
     "HabboValidationStatusView",
     "HabboValidationHistoryView",
+    "HabboConfirmView",
 ]

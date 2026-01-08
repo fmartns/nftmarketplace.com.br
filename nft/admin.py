@@ -13,7 +13,7 @@ import os
 from django.conf import settings
 
 from .models import NFTItem, PricingConfig, NFTItemAccess
-from gallery.models import NftCollection
+from nft.models import NftCollection
 
 
 @admin.register(NFTItem)

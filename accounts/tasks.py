@@ -49,12 +49,29 @@ def validate_habbo_nick(self, validation_task_id):
 
             # Verifica se a palavra de validação está no motto
             if palavra_esperada in motto_upper:
+                # Atualiza o usuário
+                user = validation_task.user
+                
+                # Verifica se o nick já está associado a outro usuário
+                existing_user = User.objects.filter(nick_habbo=nick).exclude(id=user.id).first()
+                if existing_user:
+                    validation_task.status = "failed"
+                    validation_task.resultado = f"Nick '{nick}' já está associado a outro usuário."
+                    validation_task.save()
+                    logger.warning(
+                        f"Validação falhou: nick '{nick}' já está associado ao usuário {existing_user.username} (ID: {existing_user.id})"
+                    )
+                    return {
+                        "status": "failed",
+                        "nick": nick,
+                        "resultado": validation_task.resultado,
+                    }
+                
                 # Validação bem-sucedida
                 validation_task.status = "success"
                 validation_task.resultado = f"Validação bem-sucedida! Palavra '{palavra_esperada}' encontrada no motto: '{motto}'"
+                validation_task.save()
 
-                # Atualiza o usuário
-                user = validation_task.user
                 user.nick_habbo = nick
                 user.habbo_validado = True
                 user.palavra_validacao_habbo = None  # Remove a palavra após validação

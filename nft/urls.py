@@ -1,12 +1,18 @@
 from django.urls import path
 
-from .views import (
+from .views.items import (
     NFTItemUpsertAPI,
     NFTItemListAPI,
     TrendingByAccessAPI,
     PricingConfigAPI,
 )
 from .record_access_view import RecordNFTAccessAPI
+from .views.collections import (
+    CollectionListCreateAPIView,
+    CollectionDetailAPIView,
+    CollectionStatsAPIView,
+    CollectionTrendingAPIView,
+)
 
 
 urlpatterns = [
@@ -22,4 +28,8 @@ urlpatterns = [
     ),
     # GET pricing configuration
     path("nft/pricing-config/", PricingConfigAPI.as_view(), name="nft-pricing-config"),
+    path("collections/", CollectionListCreateAPIView.as_view(), name="collections-list-create"),
+    path("collections/stats/", CollectionStatsAPIView.as_view(), name="collections-stats"),
+    path("collections/trending/", CollectionTrendingAPIView.as_view(), name="collections-trending"),
+    path("collections/<slug:slug>/", CollectionDetailAPIView.as_view(), name="collections-detail"),
 ]

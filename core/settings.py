@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     # Local apps
     "accounts",
     "banners",
+    "orders",
     # Installed apps
     "rest_framework",
     "django_filters",
@@ -57,7 +58,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_spectacular",
     "drf_spectacular_sidecar",
-    "gallery",
+    # "gallery",
     "nft",
     "legacy",
 ]

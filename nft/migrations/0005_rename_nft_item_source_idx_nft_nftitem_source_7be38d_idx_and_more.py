@@ -7,7 +7,6 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('gallery', '0005_update_social_links_labels'),
         ('nft', '0004_pricing_config_and_item_markup'),
     ]
 
@@ -61,10 +60,5 @@ class Migration(migrations.Migration):
             model_name='nftitemaccess',
             new_name='nft_nftitem_item_id_139312_idx',
             old_name='nft_item_access_idx',
-        ),
-        migrations.AddField(
-            model_name='nftitem',
-            name='collection',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='items', to='gallery.nftcollection', verbose_name='Coleção'),
         ),
     ]

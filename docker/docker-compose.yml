@@ -18,12 +18,15 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - nft_portal_network
     restart: unless-stopped
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      target: dev
     env_file:
       - ../.env
     environment:
@@ -32,9 +35,16 @@ services:
       - PORT=5173
     ports:
       - "5173:5173"
+    volumes:
+      # Mount source code for hot reload
+      - ../frontend:/app
+      # Exclude node_modules from mount to use container's version
+      - /app/node_modules
     depends_on:
       web:
         condition: service_started
+    networks:
+      - nft_portal_network
     restart: unless-stopped
 
   db:
@@ -49,6 +59,8 @@ services:
       - "54321:5432"
     volumes:
       - ../data/postgres:/var/lib/postgresql/data
+    networks:
+      - nft_portal_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-nft_portal} || exit 1"]
       interval: 5s
@@ -64,11 +76,14 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - ../data/redis:/data
+    networks:
+      - nft_portal_network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 20
+      start_period: 10s
 
   celery_worker:
     build:
@@ -87,6 +102,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - nft_portal_network
     restart: unless-stopped
 
   celery_beat:
@@ -108,6 +125,8 @@ services:
         condition: service_healthy
     volumes:
       - ../data/celerybeat:/app/celerybeat-schedule
+    networks:
+      - nft_portal_network
     restart: unless-stopped
 
   flower:
@@ -122,7 +141,13 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - nft_portal_network
     restart: unless-stopped
+
+networks:
+  nft_portal_network:
+    driver: bridge
 
 # Volumes agora são bind mounts para persistência local
 # Os dados estão em ../data/postgres, ../data/redis e ../data/celerybeat

@@ -5,7 +5,7 @@ from rest_framework.permissions import AllowAny
 from django.utils import timezone
 
 from .models import NFTItem, NFTItemAccess
-from .serializers import RecordAccessSerializer
+from .serializers.items import RecordAccessSerializer
 
 
 class RecordNFTAccessAPI(APIView):

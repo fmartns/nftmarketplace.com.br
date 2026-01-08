@@ -14,7 +14,7 @@ class LegacyItemDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ["id", "name", "description", "slug", "last_price", "average_price", "available_offers", "image_url", "created_at", "updated_at"]
+        fields = ["id", "name", "description", "slug", "last_price", "average_price", "available_offers", "image_url", "price_history", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate_slug(self, value):
@@ -45,7 +45,7 @@ class LegacyItemCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ["id", "name", "description", "slug", "last_price", "average_price", "available_offers", "image_url", "created_at", "updated_at"]
+        fields = ["id", "name", "description", "slug", "last_price", "average_price", "available_offers", "image_url", "price_history", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate_slug(self, value):

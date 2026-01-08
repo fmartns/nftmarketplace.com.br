@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="content">
+    <h1>{% trans "Importar coleções via JSON" %}</h1>
+
+    <p class="help">Cole o JSON de uma única coleção, uma lista de coleções, ou um objeto com a chave <code>collections</code> contendo uma lista.</p>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <div class="form-row">
+        <label for="id_payload"><strong>{% trans "JSON" %}</strong></label>
+        <textarea name="payload" id="id_payload" rows="18" style="width:100%; font-family:monospace;"></textarea>
+      </div>
+      <div class="form-row" style="margin-top: 10px;">
+        <label><input type="checkbox" name="update_existing"> {% trans "Atualizar registros existentes (por address)" %}</label>
+      </div>
+      <div class="submit-row">
+        <button type="submit" class="default">{% trans "Importar" %}</button>
+        <a href="{% url 'admin:nft_nftcollection_changelist' %}" class="button cancel-link">{% trans "Cancelar" %}</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+
+
+
+
+
+

@@ -2,26 +2,25 @@ from rest_framework import permissions, status, generics, filters as drf_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .docs.items import nft_item_upsert_schema, nft_item_list_schema
+from ..docs.items import nft_item_upsert_schema, nft_item_list_schema
 
 from django.db.models import Count, Max
 from django.utils import timezone
 from datetime import timedelta
-from .models import NFTItem, NFTItemAccess, PricingConfig
-from .serializers.items import (
+from ..models import NFTItem, PricingConfig
+from ..serializers.items import (
     NFTItemSerializer,
     FetchByProductCodeSerializer,
-    RecordAccessSerializer,
     PricingConfigSerializer,
 )
-from .services import (
+from ..services import (
     fetch_item_from_immutable,
     ImmutableAPIError,
     fetch_7d_sales_stats,
     fetch_min_listing_prices,
 )
 from rest_framework.permissions import AllowAny
-from .filters import NFTItemFilter
+from ..filters import NFTItemFilter
 from nft.models import NftCollection
 
 
@@ -183,75 +182,69 @@ class PricingConfigAPI(APIView):
 
     def get(self, request):
         try:
+            product_code = request.query_params.get("product_code")
+
+            # Se product_code for fornecido, buscar markup específico do item
+            if product_code:
+                try:
+                    item = NFTItem.objects.get(product_code=product_code)
+                    if item.markup_percent is not None:
+                        # Usar markup específico do item
+                        markup_percent = float(item.markup_percent)
+                        print(
+                            f"DEBUG: Using item-specific markup: {markup_percent}% for {product_code}"
+                        )
+                        return Response(
+                            {
+                                "global_markup_percent": markup_percent,
+                                "updated_at": item.updated_at.isoformat(),
+                            }
+                        )
+                except NFTItem.DoesNotExist:
+                    print(f"DEBUG: Item {product_code} not found, using global config")
+
+            # Buscar configuração global
             config = PricingConfig.objects.order_by("-updated_at").first()
+            print(f"DEBUG: Found global config: {config}")
+            if config:
+                print(f"DEBUG: Global config markup: {config.global_markup_percent}")
             if not config:
-                # Return default if no config exists
-                config = PricingConfig(global_markup_percent=30.00)
+                # Create default config with 30% markup if none exists
+                config = PricingConfig.objects.create(global_markup_percent=30.00)
+                print("DEBUG: Created default config with 30% markup")
 
             serializer = PricingConfigSerializer(config)
+            print(f"DEBUG: Serialized data: {serializer.data}")
             return Response(serializer.data)
-        except Exception:
-            return Response(
-                {"error": "Erro ao buscar configuração de markup"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-        ser = RecordAccessSerializer(data=request.data)
-        ser.is_valid(raise_exception=True)
-        product_code = ser.validated_data.get("product_code")
-        item_id = ser.validated_data.get("item_id")
-        obj = None
-        if item_id:
-            obj = NFTItem.objects.filter(id=item_id).first()
-        elif product_code:
-            obj = NFTItem.objects.filter(product_code=product_code).first()
-        if not obj:
-            return Response(
-                {"detail": "Item não encontrado"}, status=status.HTTP_404_NOT_FOUND
-            )
-
-        # Derive simple hashes to avoid storing raw PII
-        def _hash(s: str) -> str:
-            try:
-                import hashlib
-
-                return hashlib.sha256(s.encode("utf-8")).hexdigest()
-            except Exception:
-                return ""
-
-        ip = request.META.get("REMOTE_ADDR", "")
-        ua = request.META.get("HTTP_USER_AGENT", "")
-        NFTItemAccess.objects.create(
-            item=obj,
-            ip_hash=_hash(ip) if ip else "",
-            user_agent_hash=_hash(ua) if ua else "",
-        )
-        return Response({"ok": True})
+        except Exception as e:
+            print(f"DEBUG: Exception occurred: {e}")
+            # Fallback to default markup if any error occurs
+            fallback_config = PricingConfig(global_markup_percent=30.00)
+            serializer = PricingConfigSerializer(fallback_config)
+            return Response(serializer.data)
 
 
 class TrendingByAccessAPI(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        try:
-            limit = int(request.query_params.get("limit", 4))
-        except Exception:
-            limit = 4
-        try:
-            days = int(request.query_params.get("days", 7))
-        except Exception:
-            days = 7
-        since = timezone.now() - timedelta(days=days)
+        limit = int(request.query_params.get("limit", 4))
+        days = int(request.query_params.get("days", 7))
+        cutoff = timezone.now() - timedelta(days=days)
 
-        # Get counts per item for accesses since cutoff, order by most recent activity primarily, then count
-        qs = (
-            NFTItemAccess.objects.filter(accessed_at__gte=since)
-            .values("item")
-            .annotate(cnt=Count("id"), last_access=Max("accessed_at"))
-            .order_by("-last_access", "-cnt")[:limit]
+        # Get top items by access count in the last N days
+        top_items = (
+            NFTItem.objects.filter(
+                accesses__accessed_at__gte=cutoff,
+            )
+            .annotate(
+                access_count=Count("accesses"),
+                last_access=Max("accesses__accessed_at"),
+            )
+            .filter(access_count__gt=0)
+            .order_by("-access_count", "-last_access")[:limit]
         )
-        ids = [row["item"] for row in qs]
-        items = list(NFTItem.objects.filter(id__in=ids))
-        # Preserve ordering by ids sequence
-        items_sorted = sorted(items, key=lambda x: ids.index(x.id))
-        data = NFTItemSerializer(items_sorted, many=True).data
-        return Response({"results": data})
+
+        serializer = NFTItemSerializer(top_items, many=True)
+        return Response({"results": serializer.data})
+

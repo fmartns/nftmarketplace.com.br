@@ -2,13 +2,13 @@ from rest_framework import permissions, status, generics, filters as drf_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .docs import nft_item_upsert_schema, nft_item_list_schema
+from .docs.items import nft_item_upsert_schema, nft_item_list_schema
 
 from django.db.models import Count, Max
 from django.utils import timezone
 from datetime import timedelta
 from .models import NFTItem, PricingConfig
-from .serializers import (
+from .serializers.items import (
     NFTItemSerializer,
     FetchByProductCodeSerializer,
     PricingConfigSerializer,
@@ -21,7 +21,7 @@ from .services import (
 )
 from rest_framework.permissions import AllowAny
 from .filters import NFTItemFilter
-from gallery.models import NftCollection
+from nft.models import NftCollection
 
 
 class IsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):

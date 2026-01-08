@@ -25,6 +25,7 @@ from drf_spectacular.views import (
 )
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 from accounts.views.auth import CustomTokenObtainPairView
+from .health import HealthCheckView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -35,11 +36,12 @@ urlpatterns = [
     path("docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
     path("redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("accounts/", include("accounts.urls")),
-    path("collections/", include("gallery.urls")),
+    # path("collections/", include("gallery.urls")),
     path("legacy/", include("legacy.urls")),
     path("", include("banners.urls")),
     path("", include("nft.urls")),
-    path("", include("health.urls")),
+    path("", include("orders.urls")),
+    path("health/", HealthCheckView.as_view(), name="health_check"),
     path("token/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),

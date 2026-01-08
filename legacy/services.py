@@ -42,8 +42,6 @@ class LegacyPriceService:
             "Referer": "https://securehabbo.com/",
         }
 
-        image_url = f"{LegacyPriceService.IMAGE_BASE_URL}/{slug}.png"
-
         try:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -59,10 +57,11 @@ class LegacyPriceService:
             name = item_data.get("name")
             description = item_data.get("description", "")
             classname = item_data.get("classname", "")
-            image_url = item_data.get("image_url", "")
+            image_url = f"{LegacyPriceService.IMAGE_BASE_URL}/{classname}.png"
             last_price_raw = item_data.get("last_price", {}).get("price")
             average_price_raw = item_data.get("last_price", {}).get("average")
             quantity = item_data.get("last_price", {}).get("quantity", 0)
+            price_history = item_data.get("price_history", [])
             
             if not name or last_price_raw is None:
                 raise ValueError(_("Required fields not found in API response"))
@@ -70,6 +69,28 @@ class LegacyPriceService:
             # Converter preços usando a função utilitária e arredondar para 2 casas decimais
             last_price = round(convert_item_price(float(last_price_raw)), 2)
             average_price = round(convert_item_price(float(average_price_raw)), 2) if average_price_raw else last_price
+
+            # Converter preços do histórico se existir
+            converted_price_history = None
+            if price_history and isinstance(price_history, dict):
+                prices_data = price_history.get("prices", {})
+                if prices_data:
+                    # Converter arrays de preços e médias
+                    converted_prices = []
+                    converted_averages = []
+                    if prices_data.get("price"):
+                        converted_prices = [round(convert_item_price(float(p)), 2) for p in prices_data["price"]]
+                    if prices_data.get("average"):
+                        converted_averages = [round(convert_item_price(float(a)), 2) for a in prices_data["average"]]
+                    
+                    converted_price_history = {
+                        **price_history,
+                        "prices": {
+                            **prices_data,
+                            "price": converted_prices if converted_prices else prices_data.get("price", []),
+                            "average": converted_averages if converted_averages else prices_data.get("average", []),
+                        }
+                    }
 
             return {
                 "name": name,
@@ -79,6 +100,7 @@ class LegacyPriceService:
                 "last_price": last_price,
                 "average_price": average_price,
                 "available_offers": quantity,
+                "price_history": converted_price_history if converted_price_history else price_history,
             }
 
         except requests.exceptions.RequestException as e:
@@ -103,4 +125,4 @@ class LegacyPriceService:
             ValueError: Se o slug for inválido ou preço não encontrado
         """
         item_data = LegacyPriceService.get_item_data(slug)
-        return item_data["last_price"]
+        return item_data
