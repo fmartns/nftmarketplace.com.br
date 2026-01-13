@@ -10,12 +10,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse, OpenApiExample
-from drf_spectacular.types import OpenApiTypes
 
 from ..serializers import HabboValidationSerializer, HabboValidationStatusSerializer
 from ..models import HabboValidationTask
 from ..utils import generate_validation_word
+from ..docs.habbo import (
+    habbo_verify_schema,
+    habbo_confirm_schema,
+    habbo_unlink_schema,
+    habbo_validation_status_schema,
+    habbo_validation_history_schema,
+)
 
 User = get_user_model()
 
@@ -27,53 +32,7 @@ class HabboValidationView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        operation_id="habbo_verify",
-        tags=["accounts"],
-        summary="Iniciar validação do nick do Habbo",
-        description="""
-        Inicia o processo de validação do nick do Habbo usando o método de verificação por motto.
-        
-        **Como funciona:**
-        1. Envie seu nick do Habbo
-        2. Uma palavra aleatória será gerada (ex: "BANANA")
-        3. Coloque esta palavra no seu motto do Habbo
-        4. A validação será verificada automaticamente em 5 minutos
-        5. Ou confirme manualmente via POST /habbo/confirm/ após colocar a palavra
-        
-        **Nota:** O nick só pode estar associado a um usuário por vez. Se já estiver em uso, a validação será rejeitada.
-        """,
-        request=HabboValidationSerializer,
-        responses={
-            200: OpenApiResponse(
-                description="Validação iniciada com sucesso",
-                examples=[
-                    OpenApiExample(
-                        name="Validação iniciada",
-                        value={
-                            "message": 'Validação iniciada! Coloque a palavra "BANANA" no seu motto do Habbo e aguarde 5 minutos.',
-                            "palavra_validacao": "BANANA",
-                            "nick_habbo": "Maikkk.",
-                            "validation_id": 1,
-                            "eta_time": "14:35:00",
-                            "current_time": "14:30:00",
-                        },
-                    ),
-                ],
-            ),
-            400: OpenApiResponse(
-                description="Erro na validação",
-                examples=[
-                    OpenApiExample(
-                        name="Nick já validado",
-                        value={
-                            "error": "Este nick do Habbo já está validado por outro usuário",
-                        },
-                    ),
-                ],
-            ),
-        },
-    )
+    @habbo_verify_schema
     def post(self, request):
         serializer = HabboValidationSerializer(
             data=request.data, context={"request": request}
@@ -86,8 +45,10 @@ class HabboValidationView(APIView):
         nick_habbo = validated_data["nick_habbo"]
         user = request.user
 
-        # A validação do serializer já verifica se o nick está associado a outro usuário
-        # Não precisamos verificar novamente aqui
+        # Se o usuário atual já tinha um nick diferente, limpar primeiro
+        if user.nick_habbo and user.nick_habbo != nick_habbo:
+            user.nick_habbo = None
+            user.habbo_validado = False
 
         palavra_validacao = generate_validation_word()
         user.palavra_validacao_habbo = palavra_validacao
@@ -113,9 +74,11 @@ class HabboValidationView(APIView):
         current_time = datetime.now(br_tz)
         eta_time = current_time + timedelta(minutes=5)
 
+        message = f'Validação iniciada! Coloque a palavra "{palavra_validacao}" no seu motto do Habbo e aguarde 5 minutos.'
+
         return Response(
             {
-                "message": f'Validação iniciada! Coloque a palavra "{palavra_validacao}" no seu motto do Habbo e aguarde 5 minutos.',
+                "message": message,
                 "palavra_validacao": palavra_validacao,
                 "nick_habbo": nick_habbo,
                 "validation_id": validation_task.id,
@@ -133,37 +96,7 @@ class HabboUnlinkView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = None
 
-    @extend_schema(
-        operation_id="habbo_unlink",
-        tags=["accounts"],
-        summary="Desvincular nick do Habbo",
-        description="Remove a associação do nick do Habbo do perfil do usuário autenticado.",
-        responses={
-            200: OpenApiResponse(
-                description="Nick desvinculado com sucesso",
-                examples=[
-                    OpenApiExample(
-                        name="Desvinculação bem-sucedida",
-                        value={
-                            "message": 'Nick "Maikkk." desvinculado com sucesso',
-                            "nick_anterior": "Maikkk.",
-                        },
-                    ),
-                ],
-            ),
-            400: OpenApiResponse(
-                description="Erro na desvinculação",
-                examples=[
-                    OpenApiExample(
-                        name="Nick não configurado",
-                        value={
-                            "error": "Usuário não possui nick do Habbo configurado",
-                        },
-                    ),
-                ],
-            ),
-        },
-    )
+    @habbo_unlink_schema
     def post(self, request):
         """Desvincula o nick do Habbo do usuário autenticado"""
         user = request.user
@@ -197,41 +130,7 @@ class HabboValidationStatusView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        operation_id="habbo_validation_status",
-        tags=["accounts"],
-        summary="Verificar status da validação do Habbo",
-        description="""
-        Verifica o status de uma validação do Habbo.
-        Se o parâmetro validation_id não for fornecido, retorna o status da validação mais recente do usuário.
-        """,
-        parameters=[
-            OpenApiParameter(
-                name="validation_id",
-                type=OpenApiTypes.INT,
-                location=OpenApiParameter.QUERY,
-                description="ID da validação para verificar status (opcional, se não fornecido retorna a mais recente)",
-                required=False,
-            )
-        ],
-        responses={
-            200: OpenApiResponse(
-                response=HabboValidationStatusSerializer,
-                description="Status da validação retornado com sucesso",
-            ),
-            404: OpenApiResponse(
-                description="Validação não encontrada",
-                examples=[
-                    OpenApiExample(
-                        name="Não encontrada",
-                        value={
-                            "error": "Validação não encontrada",
-                        },
-                    ),
-                ],
-            ),
-        },
-    )
+    @habbo_validation_status_schema
     def get(self, request):
         validation_id = request.query_params.get("validation_id")
 
@@ -261,18 +160,7 @@ class HabboValidationHistoryView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        operation_id="habbo_validation_history",
-        tags=["accounts"],
-        summary="Histórico de validações do Habbo",
-        description="Retorna o histórico completo de todas as validações do Habbo do usuário autenticado, ordenado pela mais recente primeiro.",
-        responses={
-            200: OpenApiResponse(
-                response=HabboValidationStatusSerializer(many=True),
-                description="Histórico de validações retornado com sucesso",
-            ),
-        },
-    )
+    @habbo_validation_history_schema
     def get(self, request):
         validations = HabboValidationTask.objects.filter(user=request.user).order_by(
             "-created_at"
@@ -288,62 +176,7 @@ class HabboConfirmView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(
-        operation_id="habbo_confirm",
-        tags=["accounts"],
-        summary="Confirmar validação do Habbo manualmente",
-        description="""
-        Verifica imediatamente se a palavra de validação está presente no motto do Habbo.
-        Útil quando o usuário já colocou a palavra no motto e não quer esperar 5 minutos.
-        
-        Requer que uma validação tenha sido iniciada anteriormente via POST /habbo/verify/.
-        """,
-        responses={
-            200: OpenApiResponse(
-                description="Validação confirmada com sucesso",
-                examples=[
-                    OpenApiExample(
-                        name="Validação bem-sucedida",
-                        value={
-                            "message": "Nick validado com sucesso!",
-                            "nick_habbo": "Maikkk.",
-                            "habbo_validado": True,
-                        },
-                    ),
-                ],
-            ),
-            400: OpenApiResponse(
-                description="Erro na validação",
-                examples=[
-                    OpenApiExample(
-                        name="Palavra não encontrada",
-                        value={
-                            "error": "Palavra de validação não encontrada no motto do Habbo.",
-                            "palavra_esperada": "BANANA",
-                            "motto_atual": "sou quem sou independente de quem gost",
-                        },
-                    ),
-                    OpenApiExample(
-                        name="Nenhuma validação pendente",
-                        value={
-                            "error": "Nenhuma validação pendente encontrada. Inicie uma validação primeiro.",
-                        },
-                    ),
-                ],
-            ),
-            404: OpenApiResponse(
-                description="Nick não encontrado",
-                examples=[
-                    OpenApiExample(
-                        name="Usuário não existe",
-                        value={
-                            "error": "Usuário do Habbo não encontrado. Verifique se o nick está correto.",
-                        },
-                    ),
-                ],
-            ),
-        },
-    )
+    @habbo_confirm_schema
     def post(self, request):
         """
         Confirma manualmente a validação do Habbo.
@@ -391,21 +224,15 @@ class HabboConfirmView(APIView):
             
             # Verifica se a palavra de validação está no motto
             if palavra_esperada in motto_upper:
-                # Verifica se o nick já está associado a outro usuário
+                # Se o nick já está associado a outro usuário, desvincular da conta antiga
                 existing_user = User.objects.filter(nick_habbo=nick_habbo).exclude(id=user.id).first()
                 if existing_user:
-                    validation_task.status = "failed"
-                    validation_task.resultado = f"Nick '{nick_habbo}' já está associado a outro usuário."
-                    validation_task.save()
-                    return Response(
-                        {
-                            "error": "Este nick do Habbo já está associado a outro usuário.",
-                            "nick_habbo": nick_habbo,
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    existing_user.nick_habbo = None
+                    existing_user.habbo_validado = False
+                    existing_user.palavra_validacao_habbo = None
+                    existing_user.save()
                 
-                # Validação bem-sucedida
+                # Validação bem-sucedida - vincular à nova conta
                 validation_task.status = "success"
                 validation_task.resultado = f"Validação confirmada manualmente! Palavra '{palavra_esperada}' encontrada no motto: '{motto}'"
                 validation_task.save()
