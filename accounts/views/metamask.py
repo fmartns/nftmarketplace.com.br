@@ -9,8 +9,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
-from drf_spectacular.utils import extend_schema, OpenApiParameter
-from drf_spectacular.types import OpenApiTypes
 
 from ..serializers import (
     MetaMaskAuthSerializer,
@@ -19,6 +17,11 @@ from ..serializers import (
     UserSerializer,
 )
 from ..utils import verify_metamask_signature, get_tokens_for_user
+from ..docs.metamask import (
+    metamask_auth_schema,
+    metamask_register_schema,
+    generate_auth_message_schema,
+)
 
 User = get_user_model()
 
@@ -26,11 +29,7 @@ User = get_user_model()
 class MetaMaskAuthView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(
-        request=MetaMaskAuthSerializer,
-        responses={200: AuthResponseSerializer},
-        description="Autentica usuário usando assinatura da carteira MetaMask",
-    )
+    @metamask_auth_schema
     def post(self, request):
         serializer = MetaMaskAuthSerializer(data=request.data)
         if not serializer.is_valid():
@@ -67,11 +66,7 @@ class MetaMaskAuthView(APIView):
 class MetaMaskRegisterView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(
-        request=UserRegistrationSerializer,
-        responses={201: AuthResponseSerializer},
-        description="Registra novo usuário com dados completos usando MetaMask",
-    )
+    @metamask_register_schema
     def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         if not serializer.is_valid():
@@ -110,18 +105,7 @@ class MetaMaskRegisterView(APIView):
 class GenerateAuthMessageView(APIView):
     permission_classes = [AllowAny]
 
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="wallet_address",
-                type=OpenApiTypes.STR,
-                location=OpenApiParameter.QUERY,
-                description="Endereço da carteira MetaMask",
-            )
-        ],
-        responses={200: dict},
-        description="Gera mensagem para assinatura com MetaMask",
-    )
+    @generate_auth_message_schema
     def get(self, request):
         wallet_address = request.query_params.get("wallet_address")
 
