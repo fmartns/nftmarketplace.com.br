@@ -1,14 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from './ui/button';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { ArrowLeft, Heart, Share2, ShoppingCart, MessageCircle, Info } from 'lucide-react';
+import { ArrowLeft, Heart, Share2, ShoppingCart, MessageCircle, Info, AlertCircle } from 'lucide-react';
 import { fetchImmutableItem, fetchImmutableListings, ImmutableItemView, ImmutableListingView, fetchImmutableAsset, metadataToAttributes } from '@/api/immutable';
 import { Tabs, TabsContent } from './ui/tabs';
 import { Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ComposedChart, Bar, Legend, Label, ReferenceLine } from 'recharts';
-import { upsertNFTByProductCode, fetchNFTByProductCode, recordNFTView } from '@/api/nft';
+import { upsertNFTByProductCode, fetchNFTByProductCode, recordNFTView, NFTItem } from '@/api/nft';
 import { Skeleton } from './ui/skeleton';
 import { Tooltip as UITooltip, TooltipContent as UITooltipContent, TooltipTrigger as UITooltipTrigger } from './ui/tooltip';
 import { ShareModal } from './ShareModal';
+import { fetchUserProfile, User } from '@/api/accounts';
+import { createOrder } from '@/api/orders';
+import { createBilling } from '@/api/payments';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from './ui/alert-dialog';
 
 interface NFTItemPageProps {
   slug: string;
@@ -27,6 +40,21 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
   const [listings, setListings] = useState<ImmutableListingView[]>([]);
   const [sevenDayAvgBRL, setSevenDayAvgBRL] = useState<number | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [nftItem, setNftItem] = useState<NFTItem | null>(null);
+  const [isProfileIncompleteDialogOpen, setIsProfileIncompleteDialogOpen] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+
+  // Load user profile
+  useEffect(() => {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    if (token) {
+      fetchUserProfile()
+        .then(setUser)
+        .catch(() => setUser(null));
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -63,9 +91,9 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
         if (!mounted) return;
 
         // 2) Disparar buscas em paralelo
-  const itemPromise = fetchImmutableItem(productCode);
-  const listingsPromise = fetchImmutableListings(productCode);
-  const backendPromise = fetchNFTByProductCode(productCode).catch(() => null);
+        const itemPromise = fetchImmutableItem(productCode);
+        const listingsPromise = fetchImmutableListings(productCode);
+        const backendPromise = fetchNFTByProductCode(productCode).catch(() => null);
 
         // 3) Renderizar o item assim que disponível (progressivo)
         let data: ImmutableItemView | null = null;
@@ -135,6 +163,10 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
         try {
           const bi = await backendPromise;
           if (mounted) {
+            // Salvar NFTItem do backend para usar na compra
+            if (bi) {
+              setNftItem(bi as NFTItem);
+            }
             let backendItemPriceBRL: number | null = null;
             if (bi && (bi as any).last_price_brl != null) backendItemPriceBRL = Number((bi as any).last_price_brl);
             // Capturar média 7d do backend, se disponível
@@ -276,6 +308,99 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
   const itemUrl = useMemo(() => {
     return `${window.location.origin}/${slug}/${productCode}`;
   }, [slug, productCode]);
+
+  // Validar se o perfil do usuário está completo
+  const validateProfile = (userProfile: User | null): { isValid: boolean; missingFields: string[] } => {
+    if (!userProfile) {
+      return { isValid: false, missingFields: ['CPF', 'Nome completo', 'Email', 'Data de nascimento'] };
+    }
+
+    const missing: string[] = [];
+    
+    if (!userProfile.cpf || userProfile.cpf.trim() === '') {
+      missing.push('CPF');
+    }
+    
+    if (!userProfile.first_name || userProfile.first_name.trim() === '' || 
+        !userProfile.last_name || userProfile.last_name.trim() === '') {
+      missing.push('Nome completo');
+    }
+    
+    if (!userProfile.email || userProfile.email.trim() === '') {
+      missing.push('Email');
+    }
+    
+    if (!userProfile.data_nascimento || userProfile.data_nascimento.trim() === '') {
+      missing.push('Data de nascimento');
+    }
+
+    return {
+      isValid: missing.length === 0,
+      missingFields: missing,
+    };
+  };
+
+  // Função para comprar
+  const handlePurchase = async () => {
+    // Verificar autenticação
+    const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+    if (!token) {
+      alert('Você precisa estar autenticado para comprar. Faça login primeiro.');
+      return;
+    }
+
+    // Validar perfil
+    const validation = validateProfile(user);
+    if (!validation.isValid) {
+      setMissingFields(validation.missingFields);
+      setIsProfileIncompleteDialogOpen(true);
+      return;
+    }
+
+    // Verificar se temos o item do backend
+    if (!nftItem || !nftItem.id) {
+      alert('Aguarde o carregamento completo do item antes de comprar.');
+      return;
+    }
+
+    setIsPurchasing(true);
+    try {
+      // 1. Criar pedido
+      const order = await createOrder({
+        items: [
+          {
+            item_type: 'nft',
+            item_id: nftItem.id,
+            quantity: 1,
+          },
+        ],
+        notes: `Compra do NFT: ${item?.name || productCode}`,
+      });
+
+      // 2. Criar cobrança na AbacatePay
+      const billing = await createBilling({
+        order_id: order.order_id,
+        description: `Compra do NFT: ${item?.name || productCode}`,
+        metadata: {
+          product_code: productCode,
+          slug: slug,
+        },
+      });
+
+      // 3. Redirecionar para página de pagamento
+      if (billing.payment_url) {
+        window.open(billing.payment_url, '_blank', 'noopener,noreferrer');
+      } else {
+        alert('Cobrança criada com sucesso! Verifique seus pedidos para mais detalhes.');
+      }
+    } catch (error: any) {
+      console.error('Erro ao processar compra:', error);
+      const errorMessage = error?.message || 'Erro ao processar compra. Tente novamente.';
+      alert(errorMessage);
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
 
   return (
     <section className="bg-[#1a1a1a] text-white">
@@ -496,7 +621,14 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                     </div>
                     {/* Quantity and currency controls removed as requested */}
                     <div className="grid grid-cols-2 gap-3">
-                      <Button disabled className="bg-[#FFE000] text-black h-11 text-base opacity-60 cursor-not-allowed"><ShoppingCart className="w-5 h-5 mr-2" /> Comprar</Button>
+                      <Button 
+                        onClick={handlePurchase}
+                        disabled={isPurchasing || !nftItem}
+                        className="bg-[#FFE000] text-black h-11 text-base hover:bg-[#FFD700] disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <ShoppingCart className="w-5 h-5 mr-2" />
+                        {isPurchasing ? 'Processando...' : 'Comprar'}
+                      </Button>
                       <Button onClick={() => window.open(whatsappUrl, '_blank', 'noopener,noreferrer')} variant="outline" className="h-11 text-base border-[#25D366]/50 text-[#25D366] hover:bg-[#25D366]/10"><MessageCircle className="w-5 h-5 mr-2" /> WhatsApp</Button>
                     </div>
                   </TabsContent>
@@ -559,6 +691,46 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
         collectionName={item?.name || productCode}
         collectionUrl={itemUrl}
       />
+
+      {/* Profile Incomplete Dialog */}
+      <AlertDialog open={isProfileIncompleteDialogOpen} onOpenChange={setIsProfileIncompleteDialogOpen}>
+        <AlertDialogContent className="bg-[#202020] border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-[#FFE000]">
+              <AlertCircle className="w-5 h-5" />
+              Perfil Incompleto
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-300">
+              Para realizar uma compra, você precisa completar seu perfil com as seguintes informações:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <ul className="list-disc list-inside space-y-2 text-sm text-gray-300">
+              {missingFields.map((field) => (
+                <li key={field} className="text-gray-300">{field}</li>
+              ))}
+            </ul>
+            <p className="mt-4 text-sm text-gray-400">
+              Complete seu perfil nas configurações da conta para continuar com a compra.
+            </p>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/20 text-white hover:bg-white/10">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-[#FFE000] text-black hover:bg-[#FFD700]"
+              onClick={() => {
+                setIsProfileIncompleteDialogOpen(false);
+                // Redirecionar para página de configurações
+                window.location.href = '/configuracoes';
+              }}
+            >
+              Completar Perfil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

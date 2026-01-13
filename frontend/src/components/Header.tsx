@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import { Button } from './ui/button';
-import { Wallet, Search, Menu, X } from 'lucide-react';
+import { Wallet, Search, Menu, X, User, LogOut, ShoppingBag, Settings } from 'lucide-react';
 import { Input } from './ui/input';
 import { fetchNFTByProductCode, fetchNFTItems, type NFTItem } from '@/api/nft';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { generateAuthMessage, loginWithMetaMask, fetchUserProfile, type User } from '@/api/accounts';
 
 interface HeaderProps {
   onLogoClick?: () => void;
@@ -16,6 +17,102 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
   const [isConnected, setIsConnected] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isOrdersHovered, setIsOrdersHovered] = useState(false);
+  const [isSettingsHovered, setIsSettingsHovered] = useState(false);
+  const [isDisconnectHovered, setIsDisconnectHovered] = useState(false);
+  const [avatarImageError, setAvatarImageError] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Check if user is logged in on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+      if (token) {
+        // Try to fetch user profile to verify token
+        try {
+          const userData = await fetchUserProfile();
+          setUser(userData);
+          setIsConnected(true);
+          setWalletAddress(userData.wallet_address || '');
+          setAvatarImageError(false); // Reset avatar error when user changes
+        } catch (error: any) {
+          console.error('Erro ao verificar token:', error);
+          // Only clear token if it's a 401/403 error (unauthorized/forbidden)
+          // Don't clear on network errors or other issues
+          if (error?.message?.includes('401') || error?.message?.includes('403')) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('token');
+            setIsConnected(false);
+            setWalletAddress('');
+            setUser(null);
+          }
+        }
+      }
+    };
+
+    // Small delay to ensure localStorage is fully updated after login
+    const timer = setTimeout(() => {
+      checkAuth();
+    }, 100);
+
+    // Listen for MetaMask account changes
+    let handleAccountsChanged: ((accounts: string[]) => void) | null = null;
+    let handleChainChanged: (() => void) | null = null;
+
+    if (typeof window !== 'undefined' && (window as any).ethereum) {
+      handleAccountsChanged = (accounts: string[]) => {
+        if (accounts.length === 0) {
+          // User disconnected MetaMask
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('token');
+          setIsConnected(false);
+          setWalletAddress('');
+          setUser(null);
+          setIsDropdownOpen(false);
+        } else {
+          // Account changed, check if we need to reconnect
+          const currentAddress = accounts[0].toLowerCase();
+          const token = localStorage.getItem('access_token') || localStorage.getItem('token');
+          const storedAddress = walletAddress || (user?.wallet_address || '').toLowerCase();
+          if (token && storedAddress && currentAddress !== storedAddress) {
+            // Different account, need to reconnect
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('token');
+            setIsConnected(false);
+            setWalletAddress('');
+            setUser(null);
+            setIsDropdownOpen(false);
+            if (window.location.pathname === '/configuracoes' || window.location.pathname === '/pedidos') {
+              window.history.pushState({}, '', '/');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }
+          }
+        }
+      };
+
+      handleChainChanged = () => {
+        // Reload page on chain change
+        window.location.reload();
+      };
+
+      (window as any).ethereum.on('accountsChanged', handleAccountsChanged);
+      (window as any).ethereum.on('chainChanged', handleChainChanged);
+    }
+
+    return () => {
+      clearTimeout(timer);
+      if ((window as any).ethereum && handleAccountsChanged && handleChainChanged) {
+        (window as any).ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        (window as any).ethereum.removeListener('chainChanged', handleChainChanged);
+      }
+    };
+  }, []);
 
   // Local navigation helper
   const goTo = (to: string) => {
@@ -23,22 +120,84 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
     if (window.location.pathname !== target) {
       window.history.pushState({}, '', target);
       window.dispatchEvent(new PopStateEvent('popstate'));
+      // Also trigger a custom event for App.tsx to catch
+      window.dispatchEvent(new CustomEvent('locationchange', { detail: { path: target } }));
     }
   };
 
   const connectWallet = async () => {
-    if (typeof window !== 'undefined' && (window as any).ethereum) {
-      try {
-        const accounts = await (window as any).ethereum.request({
-          method: 'eth_requestAccounts',
-        });
-        setWalletAddress(accounts[0]);
-        setIsConnected(true);
-      } catch (error) {
-        console.error('Erro ao conectar carteira:', error);
-      }
-    } else {
+    if (typeof window === 'undefined' || !(window as any).ethereum) {
       alert('MetaMask não encontrado. Por favor, instale a extensão MetaMask.');
+      return;
+    }
+
+    setIsConnecting(true);
+    try {
+      // 1. Request account access
+      const accounts = await (window as any).ethereum.request({
+        method: 'eth_requestAccounts',
+      });
+      
+      if (!accounts || accounts.length === 0) {
+        throw new Error('Nenhuma conta encontrada');
+      }
+
+      const address = accounts[0].toLowerCase();
+      setWalletAddress(address);
+
+      // 2. Get authentication message from backend
+      const { message } = await generateAuthMessage(address);
+
+      // 3. Sign message with MetaMask
+      const signature = await (window as any).ethereum.request({
+        method: 'personal_sign',
+        params: [message, address],
+      });
+
+      // 4. Send signature to backend for authentication
+      const authResponse = await loginWithMetaMask({
+        wallet_address: address,
+        signature: signature,
+        message: message,
+      });
+
+      // 5. Save tokens to localStorage
+      localStorage.setItem('access_token', authResponse.access_token);
+      localStorage.setItem('refresh_token', authResponse.refresh_token);
+
+      // 6. Update user state
+      setUser(authResponse.user);
+      setIsConnected(true);
+      setWalletAddress(authResponse.user.wallet_address || address);
+      setAvatarImageError(false); // Reset avatar error on login
+
+      // 7. Trigger a re-check of auth state after a brief delay
+      // This ensures the UserProfilePage can fetch the user data
+      setTimeout(() => {
+        fetchUserProfile()
+          .then((userData) => {
+            setUser(userData);
+            setWalletAddress(userData.wallet_address || address);
+            setAvatarImageError(false); // Reset avatar error when user data updates
+          })
+          .catch((err) => {
+            console.error('Erro ao buscar perfil após login:', err);
+          });
+      }, 200);
+
+      // Show success message for new users only
+      if (authResponse.is_new_user) {
+        alert('Bem-vindo! Sua conta foi criada com sucesso.');
+      }
+    } catch (error: any) {
+      console.error('Erro ao conectar carteira:', error);
+      const errorMessage = error?.message || 'Erro ao conectar carteira. Por favor, tente novamente.';
+      alert(errorMessage);
+      setWalletAddress('');
+      setIsConnected(false);
+      setUser(null);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -46,6 +205,35 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
     if (!address) return '';
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
+
+  const disconnectWallet = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('token');
+    setWalletAddress('');
+    setIsConnected(false);
+    setUser(null);
+    setIsDropdownOpen(false);
+    // Navigate to home if on settings or orders page
+    if (window.location.pathname === '/configuracoes' || window.location.pathname === '/pedidos') {
+      goTo('/');
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    if (isDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isDropdownOpen]);
 
   // SearchBox component with typeahead suggestions (desktop and mobile reuse)
   function SearchBox({ className = '' }: { className?: string }) {
@@ -245,12 +433,12 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
                 Home
               </Button>
               <Button
-                variant={activeTab === 'collections' ? 'default' : 'ghost'}
+                variant={activeTab === 'nfts' ? 'default' : 'ghost'}
                 size="sm"
-                className={`${activeTab === 'collections' ? 'bg-[#FFE000] text-black hover:bg-[#FFD700]' : 'hover:bg-muted/50'}`}
-                onClick={() => onTabChange?.('collections')}
+                className={`${activeTab === 'nfts' ? 'bg-[#FFE000] text-black hover:bg-[#FFD700]' : 'hover:bg-muted/50'}`}
+                onClick={() => onTabChange?.('nfts')}
               >
-                Coleções
+                NFTs
               </Button>
               <Button
                 variant={activeTab === 'promocoes' ? 'default' : 'ghost'}
@@ -259,6 +447,14 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
                 onClick={() => onTabChange?.('promocoes')}
               >
                 Promoções
+              </Button>
+              <Button
+                variant={activeTab === 'legacy' ? 'default' : 'ghost'}
+                size="sm"
+                className={`${activeTab === 'legacy' ? 'bg-[#FFE000] text-black hover:bg-[#FFD700]' : 'hover:bg-muted/50'}`}
+                onClick={() => onTabChange?.('legacy')}
+              >
+                Legacy
               </Button>
             </div>
           </div>
@@ -271,18 +467,121 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
           {/* Wallet Connection */}
           <div className="flex items-center space-x-4">
             {isConnected ? (
-              <div className="flex items-center space-x-2 bg-[#FFE000]/10 px-3 py-1.5 rounded-lg border border-[#FFE000]/20">
-                <div className="h-2 w-2 bg-[#FFE000] rounded-full animate-pulse"></div>
-                <span className="text-sm">{formatAddress(walletAddress)}</span>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    backgroundColor: 'hsla(0, 0%, 100%, .15)',
+                    border: '1px solid transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    padding: 0,
+                    overflow: 'hidden'
+                  }}
+                >
+                  {user?.nick_habbo && !avatarImageError ? (
+                    <img
+                      src={`https://www.habbo.com.br/habbo-imaging/avatarimage?&user=${encodeURIComponent(user.nick_habbo)}&action=std&direction=4&head_direction=4&img_format=png&gesture=std&headonly=1&size=b`}
+                      alt={user.username}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                      onError={() => setAvatarImageError(true)}
+                    />
+                  ) : (
+                    <User className="w-4 h-4" style={{ color: 'white' }} />
+                  )}
+                </button>
+                {isDropdownOpen && (
+                  <div 
+                    className="absolute right-0 mt-2 rounded-lg shadow-lg z-[9999] overflow-hidden"
+                    style={{ 
+                      width: '200px',
+                      backgroundColor: '#171728',
+                      transform: 'translateX(calc(-100% + 38px))'
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        goTo('/pedidos');
+                        setIsDropdownOpen(false);
+                      }}
+                      onMouseEnter={() => setIsOrdersHovered(true)}
+                      onMouseLeave={() => setIsOrdersHovered(false)}
+                      className="w-full flex items-center px-3 py-2 transition-colors text-left"
+                      style={{
+                        color: isOrdersHovered ? '#FFE004' : 'white',
+                        backgroundColor: isOrdersHovered ? 'rgba(255, 224, 4, 0.1)' : 'transparent'
+                      }}
+                    >
+                      <ShoppingBag 
+                        className="w-4 h-4 mr-2 transition-colors" 
+                        style={{ color: isOrdersHovered ? '#FFE004' : 'white' }}
+                      />
+                      <span>Pedidos</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        goTo('/configuracoes');
+                        setIsDropdownOpen(false);
+                      }}
+                      onMouseEnter={() => setIsSettingsHovered(true)}
+                      onMouseLeave={() => setIsSettingsHovered(false)}
+                      className="w-full flex items-center px-3 py-2 transition-colors text-left"
+                      style={{
+                        color: isSettingsHovered ? '#FFE004' : 'white',
+                        backgroundColor: isSettingsHovered ? 'rgba(255, 224, 4, 0.1)' : 'transparent'
+                      }}
+                    >
+                      <Settings 
+                        className="w-4 h-4 mr-2 transition-colors" 
+                        style={{ color: isSettingsHovered ? '#FFE004' : 'white' }}
+                      />
+                      <span>Configurações</span>
+                    </button>
+                    <div className="h-px bg-[#FFE004]/20"></div>
+                    <button
+                      onClick={() => {
+                        disconnectWallet();
+                        setIsDropdownOpen(false);
+                      }}
+                      onMouseEnter={() => setIsDisconnectHovered(true)}
+                      onMouseLeave={() => setIsDisconnectHovered(false)}
+                      className="w-full flex items-center px-3 py-2 transition-colors text-left"
+                      style={{
+                        color: isDisconnectHovered ? '#FFE004' : 'white',
+                        backgroundColor: isDisconnectHovered ? 'rgba(255, 224, 4, 0.1)' : 'transparent'
+                      }}
+                    >
+                      <LogOut 
+                        className="w-4 h-4 mr-2 transition-colors" 
+                        style={{ color: isDisconnectHovered ? '#FFE004' : 'white' }}
+                      />
+                      <span>Desconectar</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <Button 
                 onClick={connectWallet}
-                className="bg-[#FFE000] hover:bg-[#FFD700] text-black border-0"
+                disabled={isConnecting}
+                className="bg-[#FFE000] hover:bg-[#FFD700] text-black border-0 disabled:opacity-50"
               >
                 <Wallet className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Conectar Carteira</span>
-                <span className="sm:hidden">Conectar</span>
+                <span className="hidden sm:inline">
+                  {isConnecting ? 'Conectando...' : 'Conectar Carteira'}
+                </span>
+                <span className="sm:hidden">
+                  {isConnecting ? '...' : 'Conectar'}
+                </span>
               </Button>
             )}
 
@@ -306,7 +605,7 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
               <SearchBox />
               
               {/* Mobile Navigation */}
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <Button
                   variant={activeTab === 'home' ? 'default' : 'ghost'}
                   className={`${activeTab === 'home' ? 'bg-[#FFE000] text-black' : ''}`}
@@ -318,14 +617,14 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
                   Home
                 </Button>
                 <Button
-                  variant={activeTab === 'collections' ? 'default' : 'ghost'}
-                  className={`${activeTab === 'collections' ? 'bg-[#FFE000] text-black' : ''}`}
+                  variant={activeTab === 'nfts' ? 'default' : 'ghost'}
+                  className={`${activeTab === 'nfts' ? 'bg-[#FFE000] text-black' : ''}`}
                   onClick={() => {
-                    onTabChange?.('collections');
+                    onTabChange?.('nfts');
                     setIsMenuOpen(false);
                   }}
                 >
-                  Coleções
+                  NFTs
                 </Button>
                 <Button
                   variant={activeTab === 'promocoes' ? 'default' : 'ghost'}
@@ -336,6 +635,16 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
                   }}
                 >
                   Promoções
+                </Button>
+                <Button
+                  variant={activeTab === 'legacy' ? 'default' : 'ghost'}
+                  className={`${activeTab === 'legacy' ? 'bg-[#FFE000] text-black' : ''}`}
+                  onClick={() => {
+                    onTabChange?.('legacy');
+                    setIsMenuOpen(false);
+                  }}
+                >
+                  Legacy
                 </Button>
               </div>
             </div>

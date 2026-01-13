@@ -50,11 +50,11 @@ export function NFTCard({
       className="group overflow-hidden bg-card/50 backdrop-blur border-border/40 hover:border-[#FFE000]/30 transition-all duration-300 hover:shadow-lg hover:shadow-[#FFE000]/10 cursor-pointer"
       onClick={onClick}
     >
-      <div className="relative overflow-hidden">
+      <div className="relative overflow-hidden bg-muted/20 aspect-square flex items-center justify-center">
         <ImageWithFallback
           src={resolveImageSrc(image)}
           alt={name}
-          className="w-full h-44 sm:h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+          className="max-w-full max-h-full w-auto h-auto object-contain p-4 transition-transform duration-300 group-hover:scale-105"
         />
         
 
