@@ -16,7 +16,6 @@ def validate_habbo_nick(self, validation_task_id):
     está presente no motto do usuário
     """
     try:
-        # Busca a task de validação
         validation_task = HabboValidationTask.objects.get(id=validation_task_id)
         validation_task.status = "processing"
         validation_task.save()
@@ -28,53 +27,35 @@ def validate_habbo_nick(self, validation_task_id):
             f"Iniciando validação do nick {nick} com palavra {palavra_esperada}"
         )
 
-        # Usa as funções utilitárias da API do Habbo
         try:
             logger.info(f"🚀 Buscando dados do usuário {nick} via API do Habbo")
 
             motto = get_habbo_user_motto(nick)
 
-            if motto:
-                logger.info(f"✅ Motto encontrado: '{motto}'")
-            else:
-                logger.info("ℹ️ Usuário não tem motto definido")
-
-        except Exception as e:
-            logger.error(f"❌ Erro ao acessar API do Habbo: {e}")
-            raise Exception(f"Erro ao acessar perfil do Habbo: {e}")
-
         if motto:
             motto_upper = motto.upper()
             logger.info(f"Comparando: '{palavra_esperada}' in '{motto_upper}'")
 
-            # Verifica se a palavra de validação está no motto
             if palavra_esperada in motto_upper:
-                # Atualiza o usuário
                 user = validation_task.user
                 
-                # Verifica se o nick já está associado a outro usuário
                 existing_user = User.objects.filter(nick_habbo=nick).exclude(id=user.id).first()
                 if existing_user:
-                    validation_task.status = "failed"
-                    validation_task.resultado = f"Nick '{nick}' já está associado a outro usuário."
-                    validation_task.save()
-                    logger.warning(
-                        f"Validação falhou: nick '{nick}' já está associado ao usuário {existing_user.username} (ID: {existing_user.id})"
+                    logger.info(
+                        f"Desvinculando nick '{nick}' do usuário {existing_user.username} (ID: {existing_user.id}) para vincular ao usuário {user.username} (ID: {user.id})"
                     )
-                    return {
-                        "status": "failed",
-                        "nick": nick,
-                        "resultado": validation_task.resultado,
-                    }
+                    existing_user.nick_habbo = None
+                    existing_user.habbo_validado = False
+                    existing_user.palavra_validacao_habbo = None
+                    existing_user.save()
                 
-                # Validação bem-sucedida
                 validation_task.status = "success"
                 validation_task.resultado = f"Validação bem-sucedida! Palavra '{palavra_esperada}' encontrada no motto: '{motto}'"
                 validation_task.save()
 
                 user.nick_habbo = nick
                 user.habbo_validado = True
-                user.palavra_validacao_habbo = None  # Remove a palavra após validação
+                user.palavra_validacao_habbo = None
                 user.save()
 
                 logger.info(
@@ -82,7 +63,6 @@ def validate_habbo_nick(self, validation_task_id):
                 )
 
             else:
-                # Palavra não encontrada
                 validation_task.status = "failed"
                 validation_task.resultado = f"Validação falhou! Palavra '{palavra_esperada}' não encontrada no motto: '{motto}'"
                 logger.warning(
@@ -90,7 +70,6 @@ def validate_habbo_nick(self, validation_task_id):
                 )
 
         else:
-            # Motto não encontrado
             validation_task.status = "failed"
             validation_task.resultado = f"Motto não localizado para o nick {nick}. Verifique se o nick existe e tem um motto definido."
             logger.warning(f"Motto não encontrado para o nick {nick}")
@@ -110,7 +89,6 @@ def validate_habbo_nick(self, validation_task_id):
     except Exception as e:
         logger.error(f"Erro na validação do nick: {str(e)}")
 
-        # Tenta atualizar o status da task
         try:
             validation_task.status = "failed"
             validation_task.resultado = f"Erro: {str(e)}"
@@ -118,7 +96,6 @@ def validate_habbo_nick(self, validation_task_id):
         except Exception:
             pass
 
-        # Retry da task se ainda tiver tentativas
         if self.request.retries < self.max_retries:
             logger.info(
                 f"Tentando novamente validação (tentativa {self.request.retries + 1})"
@@ -156,8 +133,7 @@ def retry_failed_validations():
 
     count = 0
     for task in failed_tasks:
-        # Agenda nova validação
-        validate_habbo_nick.apply_async(args=[task.id], countdown=300)  # 5 minutos
+        validate_habbo_nick.apply_async(args=[task.id], countdown=300)
         count += 1
 
     logger.info(f"Reagendadas {count} validações que falharam")
