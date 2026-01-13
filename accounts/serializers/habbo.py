@@ -18,17 +18,10 @@ class HabboValidationSerializer(serializers.Serializer):
 
     def validate_nick_habbo(self, value):
         """
-        Valida se o nick não está em uso por outro usuário.
-        Um nick do Habbo só pode estar associado a um usuário por vez.
+        Valida o formato do nick do Habbo.
+        Não bloqueia se o nick já estiver vinculado a outro usuário - 
+        a view irá desvincular automaticamente da conta antiga.
         """
-        user = self.context["request"].user
-        existing_user = (
-            User.objects.filter(nick_habbo=value).exclude(id=user.id).first()
-        )
-        if existing_user:
-            raise serializers.ValidationError(
-                "Este nick do Habbo já está associado a outro usuário. Um nick só pode estar vinculado a um usuário por vez."
-            )
         return value
 
 
