@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "accounts",
     "banners",
     "orders",
+    "payments",
     # Installed apps
     "rest_framework",
     "django_filters",
