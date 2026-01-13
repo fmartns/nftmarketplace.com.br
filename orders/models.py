@@ -213,19 +213,6 @@ class Order(models.Model):
         help_text="Cupom aplicado (se houver)",
     )
     
-    # Pagamento Stripe
-    stripe_payment_intent_id = models.CharField(
-        max_length=255,
-        blank=True,
-        db_index=True,
-        help_text="ID do PaymentIntent do Stripe",
-    )
-    
-    stripe_client_secret = models.CharField(
-        max_length=255,
-        blank=True,
-        help_text="Client secret do Stripe (temporário)",
-    )
     
     paid_at = models.DateTimeField(
         null=True,
@@ -233,7 +220,6 @@ class Order(models.Model):
         help_text="Data/hora em que o pedido foi pago",
     )
     
-    # Entrega
     delivered = models.BooleanField(
         default=False,
         db_index=True,
@@ -280,7 +266,6 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         """Gera order_id automaticamente se não existir"""
         if not self.order_id:
-            # Garante que o ID seja único
             while True:
                 order_id = generate_order_id()
                 if not Order.objects.filter(order_id=order_id).exists():
@@ -312,7 +297,6 @@ class OrderItem(models.Model):
         help_text="Pedido ao qual este item pertence",
     )
     
-    # Generic Foreign Key para suportar tanto legacy.Item quanto nft.NFTItem
     content_type = models.ForeignKey(
         ContentType,
         on_delete=models.PROTECT,
@@ -363,6 +347,8 @@ class OrderItem(models.Model):
         """Calcula total_price automaticamente"""
         self.total_price = self.unit_price * self.quantity
         super().save(*args, **kwargs)
+
+
 
 
 

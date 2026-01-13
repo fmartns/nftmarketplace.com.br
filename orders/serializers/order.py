@@ -85,7 +85,6 @@ class OrderSerializer(serializers.ModelSerializer):
             "total",
             "coupon",
             "coupon_detail",
-            "stripe_payment_intent_id",
             "paid_at",
             "delivered",
             "delivered_at",
@@ -101,7 +100,6 @@ class OrderSerializer(serializers.ModelSerializer):
             "subtotal",
             "discount_amount",
             "total",
-            "stripe_payment_intent_id",
             "paid_at",
             "delivered",
             "delivered_at",
@@ -132,7 +130,6 @@ class OrderItemCreateSerializer(serializers.Serializer):
         item_type = attrs.get("item_type")
         item_id = attrs.get("item_id")
         
-        # Determina o ContentType
         if item_type == "legacy":
             try:
                 content_type = ContentType.objects.get(app_label="legacy", model="item")
@@ -149,7 +146,6 @@ class OrderItemCreateSerializer(serializers.Serializer):
                 content_type = ContentType.objects.get(app_label="nft", model="nftitem")
                 from nft.models import NFTItem
                 item = NFTItem.objects.get(id=item_id)
-                # Usa last_price_brl, se não tiver usa 0
                 unit_price = item.last_price_brl or Decimal("0.00")
                 if unit_price == Decimal("0.00"):
                     raise serializers.ValidationError(
@@ -210,6 +206,8 @@ class OrderCreateSerializer(serializers.Serializer):
         if not value or len(value) == 0:
             raise serializers.ValidationError("Pedido deve ter pelo menos um item.")
         return value
+
+
 
 
 

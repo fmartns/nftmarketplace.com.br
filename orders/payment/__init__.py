@@ -1,6 +1,8 @@
 """
-Módulo de pagamento com Stripe
+Módulo de pagamento (usando AbacatePay)
 """
+
+
 
 
 

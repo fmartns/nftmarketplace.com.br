@@ -88,8 +88,6 @@ class OrderAdmin(admin.ModelAdmin):
     search_fields = ["order_id", "user__username", "user__email"]
     readonly_fields = [
         "order_id",
-        "stripe_payment_intent_id",
-        "stripe_client_secret",
         "created_at",
         "updated_at",
     ]
@@ -105,8 +103,6 @@ class OrderAdmin(admin.ModelAdmin):
         }),
         ("Pagamento", {
             "fields": (
-                "stripe_payment_intent_id",
-                "stripe_client_secret",
                 "paid_at",
             ),
         }),
@@ -186,6 +182,8 @@ class OrderItemAdmin(admin.ModelAdmin):
             return format_html('<a href="{}">{}</a>', url, obj.order.order_id)
         return "-"
     order_link.short_description = "Pedido"
+
+
 
 
 
