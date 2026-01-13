@@ -44,6 +44,9 @@ class UserSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+        extra_kwargs = {
+            "username": {"required": False, "allow_blank": True, "allow_null": True},
+        }
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -85,6 +88,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             "message",
         ]
         extra_kwargs = {
+            "username": {"required": False},
             "email": {"required": True},
             "first_name": {"required": True},
             "last_name": {"required": True},
@@ -99,8 +103,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value.lower()  # Normaliza para lowercase
 
     def validate_username(self, value):
-        """Valida se o username já não está em uso"""
-        if User.objects.filter(username=value).exists():
+        """Valida se o username já não está em uso (se fornecido)"""
+        if value and User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Este nome de usuário já está em uso.")
         return value
 
