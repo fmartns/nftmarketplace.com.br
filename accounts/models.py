@@ -15,8 +15,15 @@ class User(AbstractUser):
     """
     Modelo customizado de usuário com dados brasileiros e integração MetaMask
     """
+    
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Nome de usuário (opcional)",
+    )
 
-    # Dados brasileiros
     cpf = models.CharField(
         max_length=14,
         unique=True,
@@ -93,7 +100,8 @@ class User(AbstractUser):
         verbose_name_plural = "Usuários"
 
     def __str__(self):
-        return f"{self.username} ({self.wallet_address or 'Sem carteira'})"
+        username_display = self.username or "Sem username"
+        return f"{username_display} ({self.wallet_address or 'Sem carteira'})"
 
     @property
     def perfil_completo(self):
