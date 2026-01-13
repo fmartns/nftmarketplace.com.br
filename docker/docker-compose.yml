@@ -13,6 +13,11 @@ services:
       POSTGRES_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      # Mount source code for hot reload
+      - ../:/app
+      # Exclude virtual environment from mount to use container's version
+      - /app/.venv
     depends_on:
       db:
         condition: service_healthy
@@ -97,6 +102,11 @@ services:
       POSTGRES_PORT: 5432
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
+    volumes:
+      # Mount source code for hot reload
+      - ../:/app
+      # Exclude virtual environment from mount to use container's version
+      - /app/.venv
     depends_on:
       db:
         condition: service_healthy
@@ -124,6 +134,11 @@ services:
       redis:
         condition: service_healthy
     volumes:
+      # Mount source code for hot reload
+      - ../:/app
+      # Exclude virtual environment from mount to use container's version
+      - /app/.venv
+      # Celery beat schedule persistence
       - ../data/celerybeat:/app/celerybeat-schedule
     networks:
       - nft_portal_network
