@@ -16,19 +16,15 @@ class FetchByProductCodeSerializer(serializers.Serializer):
 
 
 class NFTItemSerializer(serializers.ModelSerializer):
-    # Prefer pt-BR name when available
     name = serializers.SerializerMethodField(read_only=True)
-    # Also expose the original English name for client-side search fallbacks
     original_name = serializers.CharField(source="name", read_only=True)
     name_pt_br = serializers.CharField(read_only=True)
-    # Enrich with collection metadata useful to the frontend routing/UI
     collection_slug = serializers.SerializerMethodField(read_only=True)
     collection_name = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = NFTItem
         fields = "__all__"
-        # Expose extra computed fields as well (for documentation only)
         extra_fields = [
             "collection_slug",
             "collection_name",
@@ -88,6 +84,8 @@ class PricingConfigSerializer(serializers.ModelSerializer):
         model = PricingConfig
         fields = ["global_markup_percent", "updated_at"]
         read_only_fields = ["updated_at"]
+
+
 
 
 
