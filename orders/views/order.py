@@ -123,17 +123,13 @@ class OrderDetailView(generics.RetrieveAPIView):
         from urllib.parse import unquote
         from rest_framework.exceptions import NotFound
         
-        # Pega o order_id da URL
         order_id = self.kwargs.get(self.lookup_url_kwarg)
         
-        # Decodifica o order_id (caso tenha sido codificado como %23 para #)
         if order_id:
             order_id = unquote(order_id)
-            # Garante que o order_id tenha o formato correto (#XXXXXX)
             if not order_id.startswith('#'):
                 order_id = f"#{order_id}"
         
-        # Busca o objeto usando o order_id decodificado
         queryset = self.get_queryset()
         try:
             obj = queryset.get(order_id=order_id)
