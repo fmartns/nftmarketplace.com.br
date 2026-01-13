@@ -336,3 +336,10 @@ CELERY_BEAT_SCHEDULE.update(
 
 # Auth User Model
 AUTH_USER_MODEL = "accounts.User"
+
+# AbacatePay Configuration
+ABACATEPAY_API_BASE_URL = os.getenv("ABACATEPAY_API_BASE_URL")
+ABACATEPAY_API_KEY = os.getenv("ABACATEPAY_API_KEY", "")
+ABACATEPAY_PUBLIC_KEY = os.getenv("ABACATEPAY_PUBLIC_KEY")
+ABACATEPAY_WEBHOOK_SECRET = os.getenv("ABACATEPAY_WEBHOOK_SECRET", "")
+ABACATEPAY_DOCS_URL = os.getenv("ABACATEPAY_DOCS_URL", "https://docs.abacatepay.com")
