@@ -45,5 +45,7 @@ urlpatterns = [
         name="billing-simulate",
     ),
     # Webhook
-    path("webhook/", AbacatePayWebhookView, name="webhook"),
+    # URL conforme documentação: https://docs.abacatepay.com/pages/webhooks
+    # A URL será chamada como: https://api.nftmarketplace.com.br/payments/webhook/abacatepay?webhookSecret=seu_secret
+    path("webhook/abacatepay", AbacatePayWebhookView, name="webhook"),
 ]

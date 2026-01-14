@@ -1,5 +1,8 @@
 """
 View para receber webhooks da AbacatePay (PAGAMENTOS)
+
+Implementação conforme documentação oficial:
+https://docs.abacatepay.com/pages/webhooks
 """
 
 import json
@@ -17,23 +20,27 @@ from ..models import AbacatePayBilling, AbacatePayPayment
 
 logger = logging.getLogger(__name__)
 
-ABACATEPAY_PUBLIC_KEY = getattr(settings, "ABACATEPAY_PUBLIC_KEY", None)
+# Chave pública HMAC da AbacatePay (conforme documentação)
+# Pode ser sobrescrita via settings.ABACATEPAY_PUBLIC_KEY
+ABACATEPAY_PUBLIC_KEY = getattr(
+    settings,
+    "ABACATEPAY_PUBLIC_KEY",
+    "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9",
+)
 
 ABACATEPAY_WEBHOOK_SECRET = getattr(settings, "ABACATEPAY_WEBHOOK_SECRET", "")
 
 
-def verify_webhook_signature(raw_body: bytes, signature_from_header: str) -> bool:
+def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
     """
     Verifica a assinatura HMAC do webhook usando a chave pública.
 
-    Implementação conforme documentação da AbacatePay:
-    - Calcula HMAC-SHA256 do raw_body usando a chave pública
-    - Converte para base64
-    - Compara com a assinatura recebida usando timing-safe comparison
-
+    Implementação exata conforme documentação da AbacatePay:
+    https://docs.abacatepay.com/pages/webhooks
+    
     Args:
-        raw_body: Corpo bruto da requisição em bytes
-        signature_from_header: Assinatura recebida no header X-Webhook-Signature (já em base64)
+        raw_body: Corpo bruto da requisição como string (utf-8)
+        signature_from_header: Assinatura recebida no header X-Webhook-Signature (base64)
 
     Returns:
         True se a assinatura for válida
@@ -49,29 +56,31 @@ def verify_webhook_signature(raw_body: bytes, signature_from_header: str) -> boo
         return False
 
     try:
-        # Calcula HMAC-SHA256 do raw_body usando a chave pública
+        # Converte o corpo para buffer (conforme documentação Node.js)
+        body_buffer = raw_body.encode("utf-8")
+
+        # Calcula HMAC-SHA256 do body_buffer usando a chave pública
         # Conforme documentação: createHmac("sha256", ABACATEPAY_PUBLIC_KEY).update(bodyBuffer).digest("base64")
-        expected_sig = hmac.new(
-            ABACATEPAY_PUBLIC_KEY.encode(),
-            raw_body,
+        hmac_digest = hmac.new(
+            ABACATEPAY_PUBLIC_KEY.encode("utf-8"),
+            body_buffer,
             hashlib.sha256,
         ).digest()
-
+        
         # Converte para base64 (conforme documentação)
-        expected_sig_b64 = base64.b64encode(expected_sig).decode()
+        expected_sig = base64.b64encode(hmac_digest).decode("utf-8")
+
+        # Converte para bytes para comparação timing-safe
+        expected_bytes = expected_sig.encode("utf-8")
+        received_bytes = signature_from_header.encode("utf-8")
 
         # Compara usando timing-safe comparison (conforme documentação)
-        # A assinatura recebida já está em base64 como string
-        if len(expected_sig_b64) != len(signature_from_header):
+        if len(expected_bytes) != len(received_bytes):
             return False
-
-        # Converte ambas para bytes para comparação segura (timing-safe)
-        expected_bytes = expected_sig_b64.encode("utf-8")
-        received_bytes = signature_from_header.encode("utf-8")
 
         return hmac.compare_digest(expected_bytes, received_bytes)
     except Exception as e:
-        logger.error(f"Erro ao verificar assinatura: {e}")
+        logger.error(f"Erro ao verificar assinatura: {e}", exc_info=True)
         return False
 
 
@@ -102,26 +111,51 @@ def AbacatePayWebhookView(request):
     """
     Endpoint para receber webhooks da AbacatePay
 
+    Implementação conforme documentação:
+    https://docs.abacatepay.com/pages/webhooks
+
+    Segurança:
+    - Validação via secret na URL (webhookSecret query parameter)
+    - Validação via assinatura HMAC no header X-Webhook-Signature
+
     Eventos suportados:
     - billing.paid: Cobrança foi paga
     - withdraw.done: Saque concluído
     - withdraw.failed: Saque falhou
+
+    IMPORTANTE: O corpo bruto deve ser lido antes de qualquer parsing.
+    O Django já faz isso automaticamente com request.body.
     """
     try:
-        raw_body = request.body
+        # Lê o corpo bruto como string (importante para HMAC)
+        raw_body_str = request.body.decode("utf-8")
         signature = request.headers.get("X-Webhook-Signature", "")
 
+        # Validação em duas camadas (conforme documentação):
+        # 1. Secret na URL (método simples)
+        # 2. Assinatura HMAC no header (integridade do corpo)
         signature_valid = False
+        
+        # Se houver assinatura no header, valida via HMAC
         if signature:
-            signature_valid = verify_webhook_signature(raw_body, signature)
+            signature_valid = verify_webhook_signature(raw_body_str, signature)
+            if not signature_valid:
+                logger.warning("Assinatura HMAC inválida")
         else:
+            # Se não houver assinatura, valida via secret na URL
             signature_valid = verify_webhook_secret(request)
+            if not signature_valid:
+                logger.warning("Secret do webhook inválido ou ausente")
 
         if not signature_valid:
-            logger.warning("Assinatura de webhook inválida")
+            logger.warning(
+                f"Webhook rejeitado - IP: {request.META.get('REMOTE_ADDR')}, "
+                f"Signature presente: {bool(signature)}"
+            )
             return JsonResponse({"error": "Invalid signature"}, status=401)
 
-        data = json.loads(raw_body.decode("utf-8"))
+        # Parse do JSON após validação
+        data = json.loads(raw_body_str)
         event_type = data.get("event")
         event_data = data.get("data", {})
         dev_mode = data.get("devMode", False)
@@ -132,21 +166,77 @@ def AbacatePayWebhookView(request):
         )
 
         if event_type == "billing.paid":
+            """
+            Evento: billing.paid
+            Disparado quando um pagamento é confirmado.
+            
+            O payload varia dependendo da origem:
+            - PIX QR Code: contém pixQrCode
+            - Cobrança: contém billing com billing_id
+            
+            Payload exemplo (PIX):
+            {
+                "id": "log_12345abcdef",
+                "data": {
+                    "payment": {"amount": 1000, "fee": 80, "method": "PIX"},
+                    "pixQrCode": {
+                        "amount": 1000,
+                        "id": "pix_char_mXTWdj6sABWnc4uL2Rh1r6tb",
+                        "kind": "PIX",
+                        "status": "PAID"
+                    }
+                },
+                "devMode": false,
+                "event": "billing.paid"
+            }
+            
+            Payload exemplo (Cobrança):
+            {
+                "id": "log_12345abcdef",
+                "data": {
+                    "payment": {"amount": 1000, "fee": 80, "method": "PIX"},
+                    "billing": {
+                        "id": "bill_QgW1BT3uzaDGR3ANKgmmmabZ",
+                        "amount": 1000,
+                        "status": "PAID",
+                        ...
+                    }
+                },
+                "devMode": false,
+                "event": "billing.paid"
+            }
+            """
             pix_qrcode = event_data.get("pixQrCode", {})
+            billing_data = event_data.get("billing", {})
             payment = event_data.get("payment", {})
 
             payment_amount_cents = payment.get("amount", 0) if payment else 0
             pix_id = pix_qrcode.get("id") if pix_qrcode else None
+            billing_id = billing_data.get("id") if billing_data else None
 
             logger.info(
-                f"Processando billing.paid - PIX ID: {pix_id}, Amount: {payment_amount_cents}"
+                f"Processando billing.paid - Billing ID: {billing_id}, "
+                f"PIX ID: {pix_id}, Amount: {payment_amount_cents}"
             )
 
             from decimal import Decimal
 
             billing_found = None
 
-            if payment_amount_cents > 0:
+            # Primeiro, tenta encontrar pelo billing_id se presente
+            if billing_id:
+                try:
+                    billing_found = AbacatePayBilling.objects.get(billing_id=billing_id)
+                    logger.info(
+                        f"Encontrada cobrança pelo billing_id: {billing_found.billing_id}"
+                    )
+                except AbacatePayBilling.DoesNotExist:
+                    logger.warning(
+                        f"Billing ID {billing_id} não encontrado no banco de dados"
+                    )
+
+            # Se não encontrou pelo billing_id e há valor, tenta pelo valor
+            if not billing_found and payment_amount_cents > 0:
                 payment_amount = Decimal(payment_amount_cents) / 100
 
                 pending_billings = AbacatePayBilling.objects.filter(
@@ -242,12 +332,84 @@ def AbacatePayWebhookView(request):
             logger.info(f"Cobrança {billing.billing_id} marcada como paga via webhook")
 
         elif event_type == "withdraw.done":
+            """
+            Evento: withdraw.done
+            Disparado quando um saque é concluído com sucesso.
+            
+            Payload:
+            {
+                "id": "log_12345abcdef",
+                "data": {
+                    "transaction": {
+                        "id": "tran_123456",
+                        "status": "COMPLETE",
+                        "devMode": false,
+                        "receiptUrl": "https://abacatepay.com/receipt/tran_123456",
+                        "kind": "WITHDRAW",
+                        "amount": 5000,  // em centavos
+                        "platformFee": 80,
+                        "externalId": "withdraw-1234",
+                        "createdAt": "2025-03-24T21:50:20.772Z",
+                        "updatedAt": "2025-03-24T21:55:20.772Z"
+                    }
+                },
+                "devMode": false,
+                "event": "withdraw.done"
+            }
+            """
             transaction = event_data.get("transaction", {})
-            logger.info(f"Saque concluído: {transaction.get('id')}")
+            transaction_id = transaction.get("id")
+            external_id = transaction.get("externalId")
+            amount_cents = transaction.get("amount", 0)
+            status = transaction.get("status")
+            
+            logger.info(
+                f"Saque concluído: transaction_id={transaction_id}, "
+                f"external_id={external_id}, amount={amount_cents}, status={status}"
+            )
+            
+            # TODO: Implementar lógica de processamento do saque concluído
+            # Exemplo: atualizar status de saque no banco de dados, notificar usuário, etc.
 
         elif event_type == "withdraw.failed":
+            """
+            Evento: withdraw.failed
+            Disparado quando um saque não é concluído.
+            
+            Payload:
+            {
+                "id": "log_12345abcdef",
+                "data": {
+                    "transaction": {
+                        "id": "tran_789012",
+                        "status": "CANCELLED",
+                        "devMode": false,
+                        "receiptUrl": "https://abacatepay.com/receipt/tran_789012",
+                        "kind": "WITHDRAW",
+                        "amount": 3000,  // em centavos
+                        "platformFee": 0,
+                        "externalId": "withdraw-5678",
+                        "createdAt": "2025-03-24T22:00:20.772Z",
+                        "updatedAt": "2025-03-24T22:05:20.772Z"
+                    }
+                },
+                "devMode": false,
+                "event": "withdraw.failed"
+            }
+            """
             transaction = event_data.get("transaction", {})
-            logger.info(f"Saque falhado: {transaction.get('id')}")
+            transaction_id = transaction.get("id")
+            external_id = transaction.get("externalId")
+            amount_cents = transaction.get("amount", 0)
+            status = transaction.get("status")
+            
+            logger.warning(
+                f"Saque falhado: transaction_id={transaction_id}, "
+                f"external_id={external_id}, amount={amount_cents}, status={status}"
+            )
+            
+            # TODO: Implementar lógica de processamento do saque falhado
+            # Exemplo: atualizar status de saque no banco de dados, notificar usuário, reverter saldo, etc.
 
         else:
             logger.warning(f"Tipo de evento não reconhecido: {event_type}")
