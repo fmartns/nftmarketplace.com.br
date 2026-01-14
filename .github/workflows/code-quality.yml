@@ -47,8 +47,8 @@ jobs:
       - name: Ruff (check)
         run: poetry run ruff check .
 
-      - name: Flake8 (core, health)
-        run: poetry run flake8 core health
+      - name: Flake8 (core)
+        run: poetry run flake8 core
 
       - name: Flake8 (repo inteiro)
         run: poetry run flake8 .
