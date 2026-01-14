@@ -8,13 +8,13 @@ from ..models import AbacatePayPayment
 
 class PaymentSerializer(serializers.ModelSerializer):
     """Serializer para pagamento AbacatePay"""
-    
+
     order_id = serializers.CharField(source="order.order_id", read_only=True)
     billing_id = serializers.CharField(
         source="billing.billing_id",
         read_only=True,
     )
-    
+
     class Meta:
         model = AbacatePayPayment
         fields = [

@@ -1,6 +1,7 @@
 """
 URLs para o módulo de pedidos
 """
+
 from django.urls import path
 
 from .views import (
@@ -17,5 +18,3 @@ urlpatterns = [
     path("orders/<str:order_id>/", OrderDetailView.as_view(), name="order-detail"),
     path("coupons/validate/", CouponValidateView.as_view(), name="coupon-validate"),
 ]
-
-

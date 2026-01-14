@@ -5,7 +5,10 @@ from drf_spectacular.utils import (
     OpenApiResponse,
 )
 from drf_spectacular.types import OpenApiTypes
-from .serializers import LegacyItemDetailsSerializer, LegacyItemCreateSerializer, LegacyItemListSerializer
+from .serializers import (
+    LegacyItemCreateSerializer,
+    LegacyItemListSerializer,
+)
 
 
 legacy_item_detail_schema = extend_schema(
@@ -40,9 +43,7 @@ legacy_item_detail_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Resposta de Sucesso",
-                    value={
-                        "price": 23.0
-                    },
+                    value={"price": 23.0},
                     description="Preço convertido do item",
                 ),
             ],
@@ -52,15 +53,11 @@ legacy_item_detail_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Slug Ausente",
-                    value={
-                        "slug": ["Este campo é obrigatório."]
-                    },
+                    value={"slug": ["Este campo é obrigatório."]},
                 ),
                 OpenApiExample(
                     name="Slug Vazio",
-                    value={
-                        "slug": ["Slug parameter is required"]
-                    },
+                    value={"slug": ["Slug parameter is required"]},
                 ),
             ],
         ),
@@ -69,21 +66,15 @@ legacy_item_detail_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Item não encontrado no banco",
-                    value={
-                        "error": "Item not found"
-                    },
+                    value={"error": "Item not found"},
                 ),
                 OpenApiExample(
                     name="Erro na API externa",
-                    value={
-                        "error": "Failed to fetch data from external API"
-                    },
+                    value={"error": "Failed to fetch data from external API"},
                 ),
                 OpenApiExample(
                     name="Dados inválidos da API",
-                    value={
-                        "error": "Error processing API response"
-                    },
+                    value={"error": "Error processing API response"},
                 ),
             ],
         ),
@@ -100,9 +91,7 @@ legacy_item_create_schema = extend_schema(
     examples=[
         OpenApiExample(
             name="Criar Item",
-            value={
-                "slug": "pillow*6"
-            },
+            value={"slug": "pillow*6"},
             description="Enviar slug no body da requisição",
             request_only=True,
         ),
@@ -157,15 +146,11 @@ legacy_item_create_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Slug Ausente",
-                    value={
-                        "slug": ["Este campo é obrigatório."]
-                    },
+                    value={"slug": ["Este campo é obrigatório."]},
                 ),
                 OpenApiExample(
                     name="Slug Vazio",
-                    value={
-                        "slug": ["Slug parameter is required"]
-                    },
+                    value={"slug": ["Slug parameter is required"]},
                 ),
             ],
         ),
@@ -185,9 +170,7 @@ legacy_item_create_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Sem Permissão",
-                    value={
-                        "detail": "Você não tem permissão para executar essa ação."
-                    },
+                    value={"detail": "Você não tem permissão para executar essa ação."},
                 ),
             ],
         ),
@@ -196,21 +179,15 @@ legacy_item_create_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Erro na API Externa",
-                    value={
-                        "error": "Failed to fetch data from external API"
-                    },
+                    value={"error": "Failed to fetch data from external API"},
                 ),
                 OpenApiExample(
                     name="Dados Inválidos",
-                    value={
-                        "error": "Error processing API response"
-                    },
+                    value={"error": "Error processing API response"},
                 ),
                 OpenApiExample(
                     name="Item não encontrado na API",
-                    value={
-                        "error": "Item data not found in API response"
-                    },
+                    value={"error": "Item data not found in API response"},
                 ),
             ],
         ),
@@ -329,4 +306,3 @@ legacy_item_list_schema = extend_schema(
         ),
     },
 )
-

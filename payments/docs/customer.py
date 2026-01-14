@@ -16,15 +16,15 @@ customer_create_schema = extend_schema(
     summary="Criar cliente na AbacatePay",
     description="""
     Cria um cliente na AbacatePay para o usuário autenticado.
-    
+
     **Processo:**
     1. Verifica se o usuário já possui um cliente
     2. Se não existir, cria na API da AbacatePay
     3. Salva os dados no banco de dados
-    
+
     **Nota:** O cliente é criado automaticamente quando você cria uma cobrança.
     Esta rota é útil se você quiser criar o cliente antecipadamente.
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={
@@ -90,11 +90,11 @@ customer_list_schema = extend_schema(
     summary="Listar clientes",
     description="""
     Lista clientes da AbacatePay.
-    
+
     **Permissões:**
     - Usuários comuns: veem apenas seu próprio cliente
     - Administradores: veem todos os clientes
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={

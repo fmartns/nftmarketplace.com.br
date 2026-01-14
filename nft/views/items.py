@@ -247,4 +247,3 @@ class TrendingByAccessAPI(APIView):
 
         serializer = NFTItemSerializer(top_items, many=True)
         return Response({"results": serializer.data})
-

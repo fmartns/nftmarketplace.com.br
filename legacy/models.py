@@ -1,5 +1,5 @@
-from pydoc import describe
 from django.db import models
+
 
 class Item(models.Model):
     name = models.CharField(max_length=255)
@@ -21,6 +21,7 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
+
 
 class DefaultPricingConfig(models.Model):
     bar_value = models.DecimalField(max_digits=10, decimal_places=2)

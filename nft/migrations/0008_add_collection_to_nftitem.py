@@ -8,7 +8,7 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nft', '0007_nftcollection'),
+        ("nft", "0007_nftcollection"),
     ]
 
     operations = [
@@ -19,18 +19,17 @@ class Migration(migrations.Migration):
             state_operations=[
                 # State operations: update Django's state to reflect the existing column
                 migrations.AddField(
-                    model_name='nftitem',
-                    name='collection',
+                    model_name="nftitem",
+                    name="collection",
                     field=models.ForeignKey(
                         blank=True,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
-                        related_name='items',
-                        to='nft.nftcollection',
-                        verbose_name='Coleção'
+                        related_name="items",
+                        to="nft.nftcollection",
+                        verbose_name="Coleção",
                     ),
                 ),
             ],
         ),
     ]
-

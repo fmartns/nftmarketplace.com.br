@@ -1,6 +1,7 @@
 """
 Views para cupons
 """
+
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -15,15 +16,16 @@ class CouponValidateView(APIView):
     """
     View para validar um cupom
     """
+
     permission_classes = [IsAuthenticated]
-    
+
     @extend_schema(
         operation_id="coupons_validate",
         tags=["orders"],
         summary="Validar cupom",
         description="""
         Valida um cupom e retorna o desconto que seria aplicado a um valor.
-        
+
         **Retorna:**
         - Se o cupom é válido
         - Valor do desconto que seria aplicado
@@ -52,11 +54,11 @@ class CouponValidateView(APIView):
         """Valida um cupom"""
         serializer = CouponValidateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         validated_data = serializer.validated_data
         coupon = validated_data["coupon"]
         discount = validated_data["discount"]
-        
+
         return Response(
             {
                 "valid": True,
@@ -74,10 +76,11 @@ class CouponListView(generics.ListCreateAPIView):
     """
     View para listar e criar cupons (apenas admin)
     """
+
     permission_classes = [IsAdminUser]
     serializer_class = CouponSerializer
     queryset = Coupon.objects.all().order_by("-created_at")
-    
+
     @extend_schema(
         operation_id="coupons_list",
         tags=["orders", "admin"],
@@ -92,7 +95,7 @@ class CouponListView(generics.ListCreateAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
     @extend_schema(
         operation_id="coupons_create",
         tags=["orders", "admin"],
@@ -113,10 +116,10 @@ class CouponListView(generics.ListCreateAPIView):
         """Cria um novo cupom"""
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
+
         # Define created_by como o usuário autenticado
-        coupon = serializer.save(created_by=request.user)
-        
+        serializer.save(created_by=request.user)
+
         headers = self.get_success_headers(serializer.data)
         return Response(
             serializer.data,

@@ -1,13 +1,13 @@
 """
 Views administrativas para pedidos e cupons
 """
+
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from django.utils import timezone
 
 from ..models import Order, Coupon
 from ..serializers import OrderSerializer, CouponSerializer
@@ -17,12 +17,15 @@ class OrderListAdminView(generics.ListAPIView):
     """
     View administrativa para listar todos os pedidos
     """
+
     permission_classes = [IsAdminUser]
     serializer_class = OrderSerializer
-    queryset = Order.objects.all().prefetch_related(
-        "items", "coupon", "user"
-    ).order_by("-created_at")
-    
+    queryset = (
+        Order.objects.all()
+        .prefetch_related("items", "coupon", "user")
+        .order_by("-created_at")
+    )
+
     @extend_schema(
         operation_id="admin_orders_list",
         tags=["orders", "admin"],
@@ -53,22 +56,22 @@ class OrderListAdminView(generics.ListAPIView):
     )
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        
+
         # Filtros opcionais
         status_filter = request.query_params.get("status")
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        
+
         delivered_filter = request.query_params.get("delivered")
         if delivered_filter is not None:
             delivered = delivered_filter.lower() in ("true", "1", "yes")
             queryset = queryset.filter(delivered=delivered)
-        
+
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -77,8 +80,9 @@ class OrderMarkDeliveredView(APIView):
     """
     View administrativa para marcar pedido como entregue
     """
+
     permission_classes = [IsAdminUser]
-    
+
     @extend_schema(
         operation_id="admin_orders_mark_delivered",
         tags=["orders", "admin"],
@@ -104,15 +108,15 @@ class OrderMarkDeliveredView(APIView):
                 {"error": "Pedido não encontrado."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        
+
         if order.delivered:
             return Response(
                 {"error": "Pedido já foi marcado como entregue."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         order.mark_as_delivered(request.user)
-        
+
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -121,11 +125,12 @@ class CouponAdminView(generics.RetrieveUpdateDestroyAPIView):
     """
     View administrativa para gerenciar cupons (CRUD completo)
     """
+
     permission_classes = [IsAdminUser]
     serializer_class = CouponSerializer
     queryset = Coupon.objects.all()
     lookup_field = "id"
-    
+
     @extend_schema(
         operation_id="admin_coupons_detail",
         tags=["orders", "admin"],
@@ -143,7 +148,7 @@ class CouponAdminView(generics.RetrieveUpdateDestroyAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-    
+
     @extend_schema(
         operation_id="admin_coupons_update",
         tags=["orders", "admin"],
@@ -165,7 +170,7 @@ class CouponAdminView(generics.RetrieveUpdateDestroyAPIView):
     )
     def put(self, request, *args, **kwargs):
         return super().put(request, *args, **kwargs)
-    
+
     @extend_schema(
         operation_id="admin_coupons_partial_update",
         tags=["orders", "admin"],
@@ -187,7 +192,7 @@ class CouponAdminView(generics.RetrieveUpdateDestroyAPIView):
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
-    
+
     @extend_schema(
         operation_id="admin_coupons_delete",
         tags=["orders", "admin"],
@@ -204,4 +209,3 @@ class CouponAdminView(generics.RetrieveUpdateDestroyAPIView):
     )
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
-

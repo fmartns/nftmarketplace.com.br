@@ -5,7 +5,7 @@ from django.core.validators import RegexValidator
 
 class OptionalRegexValidator(RegexValidator):
     """Validador que só valida se o valor não estiver vazio"""
-    
+
     def __call__(self, value):
         if value:
             super().__call__(value)
@@ -15,7 +15,7 @@ class User(AbstractUser):
     """
     Modelo customizado de usuário com dados brasileiros e integração MetaMask
     """
-    
+
     username = models.CharField(
         max_length=150,
         unique=True,
@@ -93,7 +93,7 @@ class User(AbstractUser):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         db_table = "auth_user"
         verbose_name = "Usuário"

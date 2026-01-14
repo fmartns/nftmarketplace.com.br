@@ -22,18 +22,18 @@ billing_create_schema = extend_schema(
     summary="Criar uma nova cobrança AbacatePay",
     description="""
     Cria uma nova cobrança na AbacatePay para um pedido existente.
-    
+
     **Processo:**
     1. Verifica se o pedido existe e pertence ao usuário
     2. Cria ou busca o cliente na AbacatePay
     3. Cria a cobrança na API da AbacatePay
     4. Salva os dados no banco de dados
     5. Retorna a URL de pagamento
-    
+
     **Métodos de pagamento disponíveis:**
     - PIX
     - Cartão de Crédito
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     request=BillingCreateSerializer,
@@ -112,7 +112,7 @@ billing_list_schema = extend_schema(
     summary="Listar cobranças do usuário",
     description="""
     Lista todas as cobranças do usuário autenticado, ordenadas pelas mais recentes primeiro.
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={
@@ -158,13 +158,13 @@ billing_status_schema = extend_schema(
     summary="Verificar status de uma cobrança",
     description="""
     Verifica o status atualizado de uma cobrança na AbacatePay.
-    
+
     **Status possíveis:**
     - `PENDING`: Cobrança pendente de pagamento
     - `PAID`: Cobrança paga
     - `EXPIRED`: Cobrança expirada
     - `CANCELLED`: Cobrança cancelada
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     parameters=[
@@ -226,12 +226,12 @@ billing_pix_qrcode_schema = extend_schema(
     summary="Criar QRCode PIX para uma cobrança",
     description="""
     Cria um QRCode PIX para uma cobrança específica.
-    
+
     **Uso:**
     - Use esta rota quando quiser gerar um QRCode PIX para pagamento
     - O QRCode pode ser escaneado por qualquer app de pagamento PIX
     - O pagamento será confirmado automaticamente via webhook
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     parameters=[
@@ -272,12 +272,12 @@ billing_pix_check_schema = extend_schema(
     summary="Verificar status de pagamento PIX",
     description="""
     Verifica o status de pagamento PIX de uma cobrança.
-    
+
     **Uso:**
     - Use esta rota para verificar se o pagamento PIX foi confirmado
     - Recomenda-se usar webhooks para atualizações em tempo real
     - Esta rota é útil para polling manual
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     parameters=[
@@ -323,12 +323,12 @@ billing_simulate_schema = extend_schema(
     summary="Simular pagamento (apenas dev mode)",
     description="""
     Simula um pagamento para uma cobrança em modo de desenvolvimento.
-    
+
     **Importante:**
     - Esta rota só funciona para cobranças criadas em modo de desenvolvimento
     - Use apenas para testes
     - Não disponível em produção
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     parameters=[

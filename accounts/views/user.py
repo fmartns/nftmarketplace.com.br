@@ -21,6 +21,7 @@ class UserProfileView(APIView):
     GET: Retorna dados do perfil
     PUT/PATCH: Atualiza dados do perfil
     """
+
     permission_classes = [IsAuthenticated]
 
     @user_profile_get_schema

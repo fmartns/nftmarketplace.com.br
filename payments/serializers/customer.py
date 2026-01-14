@@ -8,10 +8,10 @@ from ..models import AbacatePayCustomer
 
 class CustomerSerializer(serializers.ModelSerializer):
     """Serializer para cliente AbacatePay"""
-    
+
     user_email = serializers.EmailField(source="user.email", read_only=True)
     user_username = serializers.CharField(source="user.username", read_only=True)
-    
+
     class Meta:
         model = AbacatePayCustomer
         fields = [

@@ -14,7 +14,11 @@ class AbacatePayPaymentAdmin(admin.ModelAdmin):
         "created_at",
     ]
     list_filter = ["status", "payment_method", "created_at"]
-    search_fields = ["billing__billing_id", "order__order_id", "billing__customer__external_id"]
+    search_fields = [
+        "billing__billing_id",
+        "order__order_id",
+        "billing__customer__external_id",
+    ]
     readonly_fields = [
         "get_billing_id",
         "payment_url",
@@ -23,9 +27,10 @@ class AbacatePayPaymentAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     ]
-    
+
     def get_billing_id(self, obj):
         return obj.billing.billing_id
+
     get_billing_id.short_description = "Billing ID"
 
 

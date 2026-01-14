@@ -1,4 +1,5 @@
 import logging
+from typing import ContextManager, cast
 from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
@@ -40,7 +41,7 @@ def update_nft_price(self, product_code):
             raise Exception(f"Erro inesperado: {e}") from e
 
         # Atualiza os campos do item com os dados mais recentes
-        with transaction.atomic():
+        with cast(ContextManager[None], transaction.atomic()):
             # Atualiza apenas os campos de preço e dados básicos
             update_fields = [
                 "last_price_eth",

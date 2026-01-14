@@ -414,93 +414,93 @@ collection_trending_schema = extend_schema(
 
 # Serializer para documentação da rota de criação via JSON
 CollectionCreateRequestSerializer = inline_serializer(
-    name='CollectionCreateRequest',
+    name="CollectionCreateRequest",
     fields={
-        'address': serializers.CharField(
-            help_text='Endereço do contrato Ethereum (obrigatório, formato: 0x + 40 hex)',
+        "address": serializers.CharField(
+            help_text="Endereço do contrato Ethereum (obrigatório, formato: 0x + 40 hex)",
             required=True,
         ),
-        'name': serializers.CharField(
-            help_text='Nome da coleção',
+        "name": serializers.CharField(
+            help_text="Nome da coleção",
             required=False,
         ),
-        'description': serializers.CharField(
-            help_text='Descrição da coleção',
+        "description": serializers.CharField(
+            help_text="Descrição da coleção",
             required=False,
         ),
-        'icon_url': serializers.URLField(
-            help_text='URL da imagem de perfil (será mapeado para profile_image)',
+        "icon_url": serializers.URLField(
+            help_text="URL da imagem de perfil (será mapeado para profile_image)",
             required=False,
         ),
-        'collection_image_url': serializers.URLField(
-            help_text='URL da imagem de capa (será mapeado para cover_image)',
+        "collection_image_url": serializers.URLField(
+            help_text="URL da imagem de capa (será mapeado para cover_image)",
             required=False,
         ),
-        'project_id': serializers.IntegerField(
-            help_text='ID do projeto',
+        "project_id": serializers.IntegerField(
+            help_text="ID do projeto",
             required=False,
         ),
-        'project_owner_address': serializers.CharField(
-            help_text='Endereço do proprietário do projeto (formato: 0x + 40 hex)',
+        "project_owner_address": serializers.CharField(
+            help_text="Endereço do proprietário do projeto (formato: 0x + 40 hex)",
             required=False,
         ),
-        'metadata_api_url': serializers.URLField(
-            help_text='URL da API de metadados',
+        "metadata_api_url": serializers.URLField(
+            help_text="URL da API de metadados",
             required=False,
         ),
-        'creator_name': serializers.CharField(
-            help_text='Nome do criador da coleção',
+        "creator_name": serializers.CharField(
+            help_text="Nome do criador da coleção",
             required=False,
         ),
-        'items_count': serializers.IntegerField(
-            help_text='Número total de itens na coleção',
+        "items_count": serializers.IntegerField(
+            help_text="Número total de itens na coleção",
             required=False,
         ),
-        'owners_count': serializers.IntegerField(
-            help_text='Número total de proprietários únicos',
+        "owners_count": serializers.IntegerField(
+            help_text="Número total de proprietários únicos",
             required=False,
         ),
-        'floor_price': serializers.DecimalField(
-            help_text='Preço mínimo da coleção em ETH',
+        "floor_price": serializers.DecimalField(
+            help_text="Preço mínimo da coleção em ETH",
             required=False,
             max_digits=20,
             decimal_places=8,
         ),
-        'total_volume': serializers.DecimalField(
-            help_text='Volume total negociado em ETH',
+        "total_volume": serializers.DecimalField(
+            help_text="Volume total negociado em ETH",
             required=False,
             max_digits=30,
             decimal_places=8,
         ),
-        'website_url': serializers.URLField(
-            help_text='URL do site oficial',
+        "website_url": serializers.URLField(
+            help_text="URL do site oficial",
             required=False,
         ),
-        'twitter_url': serializers.URLField(
-            help_text='URL do Twitter/X',
+        "twitter_url": serializers.URLField(
+            help_text="URL do Twitter/X",
             required=False,
         ),
-        'instagram_url': serializers.URLField(
-            help_text='URL do Instagram',
+        "instagram_url": serializers.URLField(
+            help_text="URL do Instagram",
             required=False,
         ),
-        'discord_url': serializers.URLField(
-            help_text='URL do Discord',
+        "discord_url": serializers.URLField(
+            help_text="URL do Discord",
             required=False,
         ),
-        'telegram_url': serializers.URLField(
-            help_text='URL do Telegram',
+        "telegram_url": serializers.URLField(
+            help_text="URL do Telegram",
             required=False,
         ),
-        'created_at': serializers.DateTimeField(
-            help_text='Data de criação (ignorado, usado apenas para referência)',
+        "created_at": serializers.DateTimeField(
+            help_text="Data de criação (ignorado, usado apenas para referência)",
             required=False,
         ),
-        'updated_at': serializers.DateTimeField(
-            help_text='Data de atualização (ignorado, usado apenas para referência)',
+        "updated_at": serializers.DateTimeField(
+            help_text="Data de atualização (ignorado, usado apenas para referência)",
             required=False,
         ),
-    }
+    },
 )
 
 collection_create_from_json_schema = extend_schema(
@@ -599,9 +599,7 @@ collection_create_from_json_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Campo address obrigatório",
-                    value={
-                        "detail": "Campo 'address' é obrigatório."
-                    },
+                    value={"detail": "Campo 'address' é obrigatório."},
                 ),
                 OpenApiExample(
                     name="Endereço Ethereum inválido",
@@ -618,9 +616,7 @@ collection_create_from_json_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Token ausente",
-                    value={
-                        "detail": "Authentication credentials were not provided."
-                    },
+                    value={"detail": "Authentication credentials were not provided."},
                 ),
             ],
         ),
@@ -629,9 +625,7 @@ collection_create_from_json_schema = extend_schema(
             examples=[
                 OpenApiExample(
                     name="Não é superuser",
-                    value={
-                        "detail": "Apenas superusers podem criar coleções."
-                    },
+                    value={"detail": "Apenas superusers podem criar coleções."},
                 ),
             ],
         ),

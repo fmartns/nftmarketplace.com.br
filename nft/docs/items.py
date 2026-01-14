@@ -141,12 +141,3 @@ nft_item_list_schema = extend_schema(
         )
     ],
 )
-
-
-
-
-
-
-
-
-

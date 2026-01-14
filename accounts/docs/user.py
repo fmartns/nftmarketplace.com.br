@@ -7,7 +7,6 @@ from drf_spectacular.utils import (
     OpenApiResponse,
     OpenApiExample,
 )
-from drf_spectacular.types import OpenApiTypes
 from ..serializers.user import UserSerializer
 
 
@@ -17,14 +16,14 @@ user_profile_get_schema = extend_schema(
     summary="Obter dados do perfil do usuário",
     description="""
     Retorna os dados completos do perfil do usuário autenticado.
-    
+
     **Campos retornados:**
     - Informações básicas: id, username, email, first_name, last_name
     - Informações pessoais: cpf, telefone, data_nascimento
     - Integrações: nick_habbo, habbo_validado, wallet_address
     - Status: perfil_completo, is_staff, is_superuser
     - Timestamps: created_at, updated_at
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={
@@ -103,21 +102,21 @@ user_profile_update_schema = extend_schema(
     summary="Atualizar dados do perfil do usuário (substituição completa)",
     description="""
     Atualiza os dados do perfil do usuário autenticado usando substituição completa (PUT).
-    
+
     **Importante:**
     - Todos os campos editáveis devem ser enviados (exceto os read-only)
     - Campos não enviados serão definidos como None/null
     - Use PATCH para atualização parcial
-    
+
     **Campos editáveis:**
     - username, email, first_name, last_name
     - cpf, telefone, data_nascimento
-    
+
     **Campos read-only (não podem ser editados diretamente):**
     - id, nick_habbo, habbo_validado, wallet_address
     - perfil_completo, is_staff, is_superuser
     - created_at, updated_at
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     request=UserSerializer,
@@ -194,16 +193,16 @@ user_profile_partial_update_schema = extend_schema(
     summary="Atualizar parcialmente dados do perfil do usuário",
     description="""
     Atualiza parcialmente os dados do perfil do usuário autenticado (PATCH).
-    
+
     **Vantagens sobre PUT:**
     - Apenas os campos enviados serão atualizados
     - Campos não enviados permanecem inalterados
     - Ideal para atualizações pontuais
-    
+
     **Campos editáveis:**
     - username, email, first_name, last_name
     - cpf, telefone, data_nascimento
-    
+
     **Exemplo de uso:**
     ```json
     {
@@ -212,7 +211,7 @@ user_profile_partial_update_schema = extend_schema(
     }
     ```
     Apenas email e telefone serão atualizados, os demais campos permanecem inalterados.
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     request=UserSerializer,

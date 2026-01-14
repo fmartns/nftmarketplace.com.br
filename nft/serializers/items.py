@@ -84,12 +84,3 @@ class PricingConfigSerializer(serializers.ModelSerializer):
         model = PricingConfig
         fields = ["global_markup_percent", "updated_at"]
         read_only_fields = ["updated_at"]
-
-
-
-
-
-
-
-
-

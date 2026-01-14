@@ -10,5 +10,5 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     """
     View customizada que permite autenticação via username/password ou wallet_address
     """
-    serializer_class = CustomTokenObtainPairSerializer
 
+    serializer_class = CustomTokenObtainPairSerializer

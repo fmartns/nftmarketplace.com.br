@@ -1,9 +1,10 @@
 """
 Comando para verificar e reprocessar status de pagamentos no AbacatePay
 """
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from payments.models import AbacatePayBilling, AbacatePayPayment
+from payments.models import AbacatePayBilling
 from payments.services import AbacatePayService
 import logging
 
@@ -48,7 +49,9 @@ class Command(BaseCommand):
                 )
             )
             self.stdout.write("\nExemplos:")
-            self.stdout.write("  python manage.py check_payment --billing-id BILLING123")
+            self.stdout.write(
+                "  python manage.py check_payment --billing-id BILLING123"
+            )
             self.stdout.write("  python manage.py check_payment --order-id #ABC123")
             self.stdout.write("  python manage.py check_payment --all-pending")
 
@@ -72,6 +75,7 @@ class Command(BaseCommand):
 
         try:
             from orders.models import Order
+
             order = Order.objects.get(order_id=order_id)
         except Exception as e:
             self.stdout.write(
@@ -83,7 +87,9 @@ class Command(BaseCommand):
             billing = AbacatePayBilling.objects.get(order=order)
         except AbacatePayBilling.DoesNotExist:
             self.stdout.write(
-                self.style.ERROR(f"Nenhuma cobrança encontrada para o pedido: {order_id}")
+                self.style.ERROR(
+                    f"Nenhuma cobrança encontrada para o pedido: {order_id}"
+                )
             )
             return
         except AbacatePayBilling.MultipleObjectsReturned:
@@ -119,7 +125,9 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"\nAtualizados {updated} de {count} pagamentos")
         )
 
-    def update_billing_status(self, billing: AbacatePayBilling, verbose: bool = True) -> bool:
+    def update_billing_status(
+        self, billing: AbacatePayBilling, verbose: bool = True
+    ) -> bool:
         """Atualiza o status de uma cobrança consultando a API"""
         if verbose:
             self.stdout.write(
@@ -134,7 +142,7 @@ class Command(BaseCommand):
             if verbose:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"Tentando método alternativo para verificar status..."
+                        "Tentando método alternativo para verificar status..."
                     )
                 )
             status_response = AbacatePayService.get_billing_status(billing.billing_id)

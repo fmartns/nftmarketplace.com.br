@@ -14,7 +14,6 @@ from ..serializers.auth import (
     AuthResponseSerializer,
 )
 from ..serializers.user import (
-    UserSerializer,
     UserRegistrationSerializer,
 )
 
@@ -25,14 +24,14 @@ metamask_auth_schema = extend_schema(
     summary="Autenticar usuário via MetaMask",
     description="""
     Autentica um usuário usando assinatura da carteira MetaMask.
-    
+
     **Como funciona:**
     1. Obtenha uma mensagem para assinar via GET /accounts/auth/metamask/message/
     2. Assine a mensagem com sua carteira MetaMask
     3. Envie o endereço da carteira, a mensagem e a assinatura para esta rota
     4. Se o usuário não existir, ele será criado automaticamente
     5. Tokens JWT serão retornados para autenticação
-    
+
     **Fluxo completo:**
     ```
     1. GET /accounts/auth/metamask/message/?wallet_address=0x...
@@ -42,7 +41,7 @@ metamask_auth_schema = extend_schema(
        → Envia wallet_address, message, signature
        → Retorna access_token, refresh_token, user
     ```
-    
+
     **Requer autenticação:** Não (público)
     """,
     request=MetaMaskAuthSerializer,
@@ -131,11 +130,11 @@ metamask_register_schema = extend_schema(
     summary="Registrar novo usuário com dados completos via MetaMask",
     description="""
     Registra um novo usuário com dados completos usando autenticação MetaMask.
-    
+
     **Diferença do login:**
     - Esta rota permite criar um usuário com todos os dados de uma vez (nome, email, CPF, etc.)
     - A rota de login apenas cria um usuário básico se não existir
-    
+
     **Campos obrigatórios:**
     - wallet_address: Endereço da carteira Ethereum (0x...)
     - signature: Assinatura da mensagem
@@ -143,21 +142,21 @@ metamask_register_schema = extend_schema(
     - email: Email do usuário
     - first_name: Primeiro nome
     - last_name: Sobrenome
-    
+
     **Campos opcionais:**
     - username: Nome de usuário (se não fornecido, será gerado)
     - cpf: CPF do usuário
     - telefone: Telefone do usuário
     - data_nascimento: Data de nascimento
     - nick_habbo: Nick do Habbo (será validado posteriormente)
-    
+
     **Validações:**
     - wallet_address deve ser um endereço Ethereum válido
     - wallet_address não pode estar associado a outro usuário
     - username deve ser único (se fornecido)
     - email deve ser válido e único
     - nick_habbo não pode estar associado a outro usuário (se fornecido)
-    
+
     **Requer autenticação:** Não (público)
     """,
     request=UserRegistrationSerializer,
@@ -253,31 +252,31 @@ generate_auth_message_schema = extend_schema(
     summary="Gerar mensagem para assinatura MetaMask",
     description="""
     Gera uma mensagem única para ser assinada com a carteira MetaMask.
-    
+
     **Uso:**
     1. Chame esta rota com o endereço da carteira
     2. Receba a mensagem formatada
     3. Peça ao usuário para assinar a mensagem no MetaMask
     4. Use a mensagem e assinatura para autenticar via POST /accounts/auth/metamask/login/
-    
+
     **Formato da mensagem:**
     ```
     Bem-vindo ao NFT Portal!
-    
+
     Esta solicitação não custará nada.
-    
+
     Endereço da carteira: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
     Nonce: abc123def456...
     Timestamp: 2024-01-20T14:30:00.123456+00:00
-    
+
     Assine esta mensagem para autenticar-se no NFT Portal.
     ```
-    
+
     **Segurança:**
     - Cada mensagem contém um nonce único
     - O timestamp garante que a mensagem não seja reutilizada
     - A mensagem é específica para o endereço da carteira
-    
+
     **Requer autenticação:** Não (público)
     """,
     parameters=[

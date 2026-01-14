@@ -28,8 +28,22 @@ urlpatterns = [
     ),
     # GET pricing configuration
     path("nft/pricing-config/", PricingConfigAPI.as_view(), name="nft-pricing-config"),
-    path("collections/", CollectionListCreateAPIView.as_view(), name="collections-list-create"),
-    path("collections/stats/", CollectionStatsAPIView.as_view(), name="collections-stats"),
-    path("collections/trending/", CollectionTrendingAPIView.as_view(), name="collections-trending"),
-    path("collections/<slug:slug>/", CollectionDetailAPIView.as_view(), name="collections-detail"),
+    path(
+        "collections/",
+        CollectionListCreateAPIView.as_view(),
+        name="collections-list-create",
+    ),
+    path(
+        "collections/stats/", CollectionStatsAPIView.as_view(), name="collections-stats"
+    ),
+    path(
+        "collections/trending/",
+        CollectionTrendingAPIView.as_view(),
+        name="collections-trending",
+    ),
+    path(
+        "collections/<slug:slug>/",
+        CollectionDetailAPIView.as_view(),
+        name="collections-detail",
+    ),
 ]

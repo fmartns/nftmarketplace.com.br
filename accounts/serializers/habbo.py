@@ -19,7 +19,7 @@ class HabboValidationSerializer(serializers.Serializer):
     def validate_nick_habbo(self, value):
         """
         Valida o formato do nick do Habbo.
-        Não bloqueia se o nick já estiver vinculado a outro usuário - 
+        Não bloqueia se o nick já estiver vinculado a outro usuário -
         a view irá desvincular automaticamente da conta antiga.
         """
         return value

@@ -30,6 +30,7 @@ class HabboValidationView(APIView):
     View para iniciar processo de validação do nick do Habbo.
     Gera uma palavra aleatória que deve ser colocada no motto do Habbo.
     """
+
     permission_classes = [IsAuthenticated]
 
     @habbo_verify_schema
@@ -93,6 +94,7 @@ class HabboUnlinkView(APIView):
     View para desvincular o nick do Habbo do usuário.
     Remove a associação do nick validado do perfil do usuário.
     """
+
     permission_classes = [IsAuthenticated]
     serializer_class = None
 
@@ -128,6 +130,7 @@ class HabboValidationStatusView(APIView):
     View para verificar o status de uma validação do Habbo.
     Se não for fornecido validation_id, retorna o status da validação mais recente.
     """
+
     permission_classes = [IsAuthenticated]
 
     @habbo_validation_status_schema
@@ -158,6 +161,7 @@ class HabboValidationHistoryView(APIView):
     View para obter o histórico de validações do Habbo do usuário.
     Retorna todas as validações ordenadas pela mais recente primeiro.
     """
+
     permission_classes = [IsAuthenticated]
 
     @habbo_validation_history_schema
@@ -174,6 +178,7 @@ class HabboConfirmView(APIView):
     View para confirmação manual da validação do Habbo.
     Verifica imediatamente se a palavra de validação está no motto.
     """
+
     permission_classes = [IsAuthenticated]
 
     @habbo_confirm_schema
@@ -183,17 +188,14 @@ class HabboConfirmView(APIView):
         Verifica se a palavra de validação está presente no motto.
         """
         user = request.user
-        
+
         # Busca a validação pendente mais recente
         validation_task = (
-            HabboValidationTask.objects.filter(
-                user=user,
-                status="pending"
-            )
+            HabboValidationTask.objects.filter(user=user, status="pending")
             .order_by("-created_at")
             .first()
         )
-        
+
         if not validation_task:
             return Response(
                 {
@@ -201,16 +203,16 @@ class HabboConfirmView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         nick_habbo = validation_task.nick_habbo
         palavra_esperada = validation_task.palavra_validacao.upper()
-        
+
         try:
             # Busca o motto do usuário via API do Habbo
             from ..utils import get_habbo_user_motto
-            
+
             motto = get_habbo_user_motto(nick_habbo)
-            
+
             if not motto:
                 return Response(
                     {
@@ -219,30 +221,34 @@ class HabboConfirmView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+
             motto_upper = motto.upper()
-            
+
             # Verifica se a palavra de validação está no motto
             if palavra_esperada in motto_upper:
                 # Se o nick já está associado a outro usuário, desvincular da conta antiga
-                existing_user = User.objects.filter(nick_habbo=nick_habbo).exclude(id=user.id).first()
+                existing_user = (
+                    User.objects.filter(nick_habbo=nick_habbo)
+                    .exclude(id=user.id)
+                    .first()
+                )
                 if existing_user:
                     existing_user.nick_habbo = None
                     existing_user.habbo_validado = False
                     existing_user.palavra_validacao_habbo = None
                     existing_user.save()
-                
+
                 # Validação bem-sucedida - vincular à nova conta
                 validation_task.status = "success"
                 validation_task.resultado = f"Validação confirmada manualmente! Palavra '{palavra_esperada}' encontrada no motto: '{motto}'"
                 validation_task.save()
-                
+
                 # Atualiza o usuário
                 user.nick_habbo = nick_habbo
                 user.habbo_validado = True
                 user.palavra_validacao_habbo = None  # Remove a palavra após validação
                 user.save()
-                
+
                 return Response(
                     {
                         "message": "Nick validado com sucesso!",
@@ -256,7 +262,7 @@ class HabboConfirmView(APIView):
                 validation_task.status = "failed"
                 validation_task.resultado = f"Validação falhou! Palavra '{palavra_esperada}' não encontrada no motto: '{motto}'"
                 validation_task.save()
-                
+
                 return Response(
                     {
                         "error": "Palavra de validação não encontrada no motto do Habbo.",
@@ -266,13 +272,13 @@ class HabboConfirmView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        
+
         except Exception as e:
             # Erro ao acessar API do Habbo
             validation_task.status = "failed"
             validation_task.resultado = f"Erro ao acessar API do Habbo: {str(e)}"
             validation_task.save()
-            
+
             return Response(
                 {
                     "error": "Erro ao verificar perfil do Habbo. Verifique se o nick está correto e tente novamente.",

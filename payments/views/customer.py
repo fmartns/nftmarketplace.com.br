@@ -20,8 +20,9 @@ class CustomerCreateView(APIView):
     """
     View para criar um cliente na AbacatePay
     """
+
     permission_classes = [IsAuthenticated]
-    
+
     @customer_create_schema
     def post(self, request):
         """Cria um cliente na AbacatePay para o usuário autenticado"""
@@ -30,20 +31,26 @@ class CustomerCreateView(APIView):
             return Response(
                 {
                     "message": "Cliente já existe",
-                    "customer": CustomerSerializer(request.user.abacatepay_customer).data,
+                    "customer": CustomerSerializer(
+                        request.user.abacatepay_customer
+                    ).data,
                 },
                 status=status.HTTP_200_OK,
             )
-        
-        user_name = f"{request.user.first_name or ''} {request.user.last_name or ''}".strip()
+
+        user_name = (
+            f"{request.user.first_name or ''} {request.user.last_name or ''}".strip()
+        )
         if not user_name:
             user_name = request.user.username or request.user.email
             if not user_name:
                 return Response(
-                    {"error": "Nome do usuário é obrigatório. Complete seu perfil com nome completo."},
+                    {
+                        "error": "Nome do usuário é obrigatório. Complete seu perfil com nome completo."
+                    },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-        
+
         customer_response = AbacatePayService.create_customer(
             user_id=str(request.user.id),
             email=request.user.email,
@@ -56,21 +63,24 @@ class CustomerCreateView(APIView):
                 "last_name": request.user.last_name or "",
             },
         )
-        
+
         if customer_response.get("error"):
             return Response(
-                {"error": "Erro ao criar cliente na AbacatePay", "details": customer_response["error"]},
+                {
+                    "error": "Erro ao criar cliente na AbacatePay",
+                    "details": customer_response["error"],
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        
+
         customer_data = customer_response["data"]
-        
+
         customer = AbacatePayCustomer.objects.create(
             user=request.user,
             external_id=customer_data["id"],
             metadata=customer_data.get("metadata", {}),
         )
-        
+
         return Response(
             CustomerSerializer(customer).data,
             status=status.HTTP_201_CREATED,
@@ -81,8 +91,9 @@ class CustomerListView(APIView):
     """
     View para listar clientes (apenas para admin)
     """
+
     permission_classes = [IsAuthenticated]
-    
+
     @customer_list_schema
     def get(self, request):
         """Lista clientes (apenas admin pode ver todos)"""
@@ -91,7 +102,9 @@ class CustomerListView(APIView):
                 serializer = CustomerSerializer(request.user.abacatepay_customer)
                 return Response([serializer.data])
             return Response([])
-        
-        customers = AbacatePayCustomer.objects.select_related("user").order_by("-created_at")
+
+        customers = AbacatePayCustomer.objects.select_related("user").order_by(
+            "-created_at"
+        )
         serializer = CustomerSerializer(customers, many=True)
         return Response(serializer.data)

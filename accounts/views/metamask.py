@@ -13,7 +13,6 @@ from rest_framework.permissions import AllowAny
 from ..serializers import (
     MetaMaskAuthSerializer,
     UserRegistrationSerializer,
-    AuthResponseSerializer,
     UserSerializer,
 )
 from ..utils import verify_metamask_signature, get_tokens_for_user

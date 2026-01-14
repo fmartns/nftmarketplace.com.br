@@ -11,7 +11,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="nftitem",
             name="seven_day_volume_brl",
-            field=models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=18, null=True),
+            field=models.DecimalField(
+                blank=True, decimal_places=2, default=0, max_digits=18, null=True
+            ),
         ),
         migrations.AddField(
             model_name="nftitem",
@@ -21,17 +23,23 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="nftitem",
             name="seven_day_avg_price_brl",
-            field=models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=18, null=True),
+            field=models.DecimalField(
+                blank=True, decimal_places=2, default=0, max_digits=18, null=True
+            ),
         ),
         migrations.AddField(
             model_name="nftitem",
             name="seven_day_last_sale_brl",
-            field=models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=18, null=True),
+            field=models.DecimalField(
+                blank=True, decimal_places=2, default=0, max_digits=18, null=True
+            ),
         ),
         migrations.AddField(
             model_name="nftitem",
             name="seven_day_price_change_pct",
-            field=models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=7, null=True),
+            field=models.DecimalField(
+                blank=True, decimal_places=2, default=0, max_digits=7, null=True
+            ),
         ),
         migrations.AddField(
             model_name="nftitem",

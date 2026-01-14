@@ -5,13 +5,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nft', '0005_rename_nft_item_source_idx_nft_nftitem_source_7be38d_idx_and_more'),
+        (
+            "nft",
+            "0005_rename_nft_item_source_idx_nft_nftitem_source_7be38d_idx_and_more",
+        ),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='nftitem',
-            name='name_pt_br',
-            field=models.CharField(verbose_name='Nome (pt-BR)', max_length=200, blank=True, db_index=True),
+            model_name="nftitem",
+            name="name_pt_br",
+            field=models.CharField(
+                verbose_name="Nome (pt-BR)", max_length=200, blank=True, db_index=True
+            ),
         ),
     ]

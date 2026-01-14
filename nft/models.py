@@ -4,7 +4,6 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 
 
-
 class NFTItem(models.Model):
     type = models.CharField(max_length=120)
     blueprint = models.TextField(blank=True)
@@ -87,7 +86,8 @@ class NFTItem(models.Model):
         ordering = ["name", "rarity", "item_type", "item_sub_type"]
 
     def __str__(self) -> str:  # type: ignore[override]
-        return self.name or (self.product_code or "NFT Item")
+        return str(self.name or (self.product_code or "NFT Item"))
+
 
 def validate_eth_address(value: str):
     if not isinstance(value, str) or not value.startswith("0x") or len(value) != 42:
@@ -204,6 +204,7 @@ class NftCollection(models.Model):
     def total_volume_eth(self):
         """Retorna o volume total formatado"""
         return f"{self.total_volume:.2f} ETH" if self.total_volume > 0 else "N/A"
+
 
 class NFTItemAccess(models.Model):
     """Tracks user access/pageviews for NFT items."""

@@ -30,13 +30,13 @@ orders_create_schema = extend_schema(
     summary="Criar novo pedido",
     description="""
     Cria um novo pedido com itens (legacy ou NFT).
-    
+
     **Processo:**
     1. Valida os itens e calcula o subtotal
     2. Aplica cupom de desconto (se fornecido)
     3. Calcula o total final
     4. Retorna os dados do pedido para pagamento via AbacatePay
-    
+
     **Itens:**
     - `item_type`: "legacy" ou "nft"
     - `item_id`: ID do item correspondente

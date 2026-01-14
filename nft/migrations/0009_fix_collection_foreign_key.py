@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('nft', '0008_add_collection_to_nftitem'),
+        ("nft", "0008_add_collection_to_nftitem"),
     ]
 
     operations = [
@@ -34,10 +34,3 @@ class Migration(migrations.Migration):
             """,
         ),
     ]
-
-
-
-
-
-
-

@@ -15,10 +15,3 @@ __all__ = [
     "OrderListAdminView",
     "CouponAdminView",
 ]
-
-
-
-
-
-
-

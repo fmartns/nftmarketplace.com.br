@@ -21,19 +21,19 @@ habbo_verify_schema = extend_schema(
     summary="Iniciar validação do nick do Habbo",
     description="""
     Inicia o processo de validação do nick do Habbo usando o método de verificação por motto.
-    
+
     **Como funciona:**
     1. Envie seu nick do Habbo
     2. Uma palavra aleatória será gerada (ex: "BANANA")
     3. Coloque esta palavra no seu motto do Habbo
     4. A validação será verificada automaticamente em 5 minutos
     5. Ou confirme manualmente via POST /accounts/habbo/confirm/ após colocar a palavra
-    
+
     **Importante:**
     - Se o nick já estiver vinculado a outra conta, ele será desvinculado da conta antiga apenas após a validação ser bem-sucedida
     - A palavra de validação deve ser colocada exatamente como fornecida (case-insensitive)
     - O processo de validação automática leva 5 minutos
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     request=HabboValidationSerializer,
@@ -66,7 +66,9 @@ habbo_verify_schema = extend_schema(
                 OpenApiExample(
                     name="Nick muito longo",
                     value={
-                        "nick_habbo": ["Certifique-se de que este campo não tenha mais de 50 caracteres."],
+                        "nick_habbo": [
+                            "Certifique-se de que este campo não tenha mais de 50 caracteres."
+                        ],
                     },
                 ),
             ],
@@ -92,15 +94,15 @@ habbo_confirm_schema = extend_schema(
     summary="Confirmar validação do Habbo manualmente",
     description="""
     Verifica imediatamente se a palavra de validação está presente no motto do Habbo.
-    
+
     **Quando usar:**
     - Quando você já colocou a palavra no motto e não quer esperar 5 minutos
     - Para verificar imediatamente se a validação foi bem-sucedida
-    
+
     **Requisitos:**
     - Uma validação deve ter sido iniciada anteriormente via POST /accounts/habbo/verify/
     - A palavra de validação deve estar presente no motto do Habbo
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={
@@ -170,16 +172,16 @@ habbo_unlink_schema = extend_schema(
     summary="Desvincular nick do Habbo",
     description="""
     Remove a associação do nick do Habbo do perfil do usuário autenticado.
-    
+
     **O que acontece:**
     - O nick do Habbo é removido do perfil
     - O status de validação é resetado (habbo_validado = False)
     - A palavra de validação é removida
-    
+
     **Importante:**
     - Esta ação não pode ser desfeita
     - Você precisará validar novamente se quiser vincular o mesmo ou outro nick
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={
@@ -227,16 +229,16 @@ habbo_validation_status_schema = extend_schema(
     summary="Verificar status da validação do Habbo",
     description="""
     Verifica o status de uma validação do Habbo.
-    
+
     **Comportamento:**
     - Se o parâmetro `validation_id` for fornecido, retorna o status dessa validação específica
     - Se o parâmetro não for fornecido, retorna o status da validação mais recente do usuário
-    
+
     **Status possíveis:**
     - `pending`: Validação em andamento, aguardando verificação
     - `success`: Validação bem-sucedida, nick vinculado
     - `failed`: Validação falhou (palavra não encontrada ou erro na API)
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     parameters=[
@@ -333,10 +335,10 @@ habbo_validation_history_schema = extend_schema(
     summary="Histórico de validações do Habbo",
     description="""
     Retorna o histórico completo de todas as validações do Habbo do usuário autenticado.
-    
+
     **Ordenação:**
     - As validações são retornadas ordenadas pela mais recente primeiro (created_at DESC)
-    
+
     **Informações retornadas:**
     - ID da validação
     - Nick do Habbo usado
@@ -344,7 +346,7 @@ habbo_validation_history_schema = extend_schema(
     - Status da validação (pending, success, failed)
     - Resultado/mensagem da validação
     - Timestamps (created_at, updated_at)
-    
+
     **Requer autenticação:** Sim (JWT Token)
     """,
     responses={

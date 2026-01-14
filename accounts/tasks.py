@@ -29,8 +29,17 @@ def validate_habbo_nick(self, validation_task_id):
 
         try:
             logger.info(f"🚀 Buscando dados do usuário {nick} via API do Habbo")
-
             motto = get_habbo_user_motto(nick)
+        except Exception as e:
+            logger.error(f"Erro ao buscar dados do usuário {nick}: {e}")
+            validation_task.status = "failed"
+            validation_task.resultado = f"Erro ao buscar motto: {e}"
+            validation_task.save()
+            return {
+                "status": "failed",
+                "nick": nick,
+                "resultado": validation_task.resultado,
+            }
 
         if motto:
             motto_upper = motto.upper()
@@ -38,8 +47,10 @@ def validate_habbo_nick(self, validation_task_id):
 
             if palavra_esperada in motto_upper:
                 user = validation_task.user
-                
-                existing_user = User.objects.filter(nick_habbo=nick).exclude(id=user.id).first()
+
+                existing_user = (
+                    User.objects.filter(nick_habbo=nick).exclude(id=user.id).first()
+                )
                 if existing_user:
                     logger.info(
                         f"Desvinculando nick '{nick}' do usuário {existing_user.username} (ID: {existing_user.id}) para vincular ao usuário {user.username} (ID: {user.id})"
@@ -48,7 +59,7 @@ def validate_habbo_nick(self, validation_task_id):
                     existing_user.habbo_validado = False
                     existing_user.palavra_validacao_habbo = None
                     existing_user.save()
-                
+
                 validation_task.status = "success"
                 validation_task.resultado = f"Validação bem-sucedida! Palavra '{palavra_esperada}' encontrada no motto: '{motto}'"
                 validation_task.save()

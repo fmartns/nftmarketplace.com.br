@@ -196,7 +196,13 @@ class CollectionCreateAPIView(APIView):
                 pass
 
         # URLs de redes sociais (se fornecidas)
-        url_fields = ["website_url", "twitter_url", "instagram_url", "discord_url", "telegram_url"]
+        url_fields = [
+            "website_url",
+            "twitter_url",
+            "instagram_url",
+            "discord_url",
+            "telegram_url",
+        ]
         for field in url_fields:
             if field in data:
                 defaults[field] = data.get(field, "")
