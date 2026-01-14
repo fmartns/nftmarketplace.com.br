@@ -12,6 +12,7 @@ from .views.collections import (
     CollectionDetailAPIView,
     CollectionStatsAPIView,
     CollectionTrendingAPIView,
+    CollectionImportAPIView,
 )
 
 
@@ -45,5 +46,11 @@ urlpatterns = [
         "collections/<slug:slug>/",
         CollectionDetailAPIView.as_view(),
         name="collections-detail",
+    ),
+    # POST importar múltiplas coleções via JSON
+    path(
+        "collections/import/",
+        CollectionImportAPIView.as_view(),
+        name="collections-import",
     ),
 ]

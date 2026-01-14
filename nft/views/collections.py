@@ -218,3 +218,159 @@ class CollectionCreateAPIView(APIView):
             serializer.data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
+
+
+class CollectionImportAPIView(APIView):
+    """
+    API para importar múltiplas coleções NFT via JSON em lote.
+
+    Aceita diferentes formatos:
+    - Lista de coleções: [{"address": "...", "name": "..."}, ...]
+    - Objeto com chave collections: {"collections": [{"address": "...", ...}]}
+    - Coleção única: {"address": "...", "name": "..."}
+
+    Requer autenticação de admin.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        """Importa múltiplas coleções NFT a partir de JSON."""
+        if not request.user.is_superuser:
+            return Response(
+                {"detail": "Apenas superusers podem importar coleções."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from django.db import transaction
+
+        data = request.data
+
+        # Aceita diferentes formatos de entrada
+        items = []
+        if isinstance(data, dict) and "collections" in data:
+            items = data["collections"]
+        elif isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = [data]
+        else:
+            return Response(
+                {
+                    "detail": 'Formato inválido. Use uma lista, objeto único ou {"collections": [...]}'
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not items:
+            return Response(
+                {"detail": "Nenhuma coleção fornecida para importar."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = 0
+        updated = 0
+        errors = []
+        update_existing = request.data.get("update_existing", False)
+
+        @transaction.atomic
+        def _import():
+            nonlocal created, updated
+            for idx, obj in enumerate(items, start=1):
+                try:
+                    address = (obj.get("address") or "").strip()
+                    if not address:
+                        errors.append(
+                            {"index": idx, "error": "Campo 'address' é obrigatório"}
+                        )
+                        continue
+
+                    defaults = {}
+
+                    # Mapear campos simples
+                    for src, dst in [
+                        ("name", "name"),
+                        ("description", "description"),
+                        ("metadata_api_url", "metadata_api_url"),
+                        ("project_id", "project_id"),
+                        ("project_owner_address", "project_owner_address"),
+                        ("website_url", "website_url"),
+                        ("twitter_url", "twitter_url"),
+                        ("instagram_url", "instagram_url"),
+                        ("discord_url", "discord_url"),
+                        ("telegram_url", "telegram_url"),
+                        ("creator_name", "creator_name"),
+                    ]:
+                        val = obj.get(src)
+                        if val is not None:
+                            defaults[dst] = val
+
+                    # Mapear imagens com fallback
+                    profile_image = obj.get("profile_image") or obj.get("icon_url")
+                    cover_image = obj.get("cover_image") or obj.get(
+                        "collection_image_url"
+                    )
+                    if profile_image:
+                        defaults["profile_image"] = profile_image
+                    if cover_image:
+                        defaults["cover_image"] = cover_image
+
+                    # Campos numéricos
+                    for src, dst, cast_func in [
+                        ("items_count", "items_count", int),
+                        ("owners_count", "owners_count", int),
+                    ]:
+                        if obj.get(src) is not None:
+                            try:
+                                defaults[dst] = cast_func(obj.get(src))
+                            except (ValueError, TypeError):
+                                pass
+
+                    for src, dst in [
+                        ("floor_price", "floor_price"),
+                        ("total_volume", "total_volume"),
+                    ]:
+                        if obj.get(src) is not None:
+                            try:
+                                defaults[dst] = Decimal(str(obj.get(src)))
+                            except (ValueError, TypeError):
+                                pass
+
+                    # Criar ou atualizar
+                    if update_existing:
+                        _, created_flag = NftCollection.objects.update_or_create(
+                            address=address, defaults=defaults
+                        )
+                        if created_flag:
+                            created += 1
+                        else:
+                            updated += 1
+                    else:
+                        if NftCollection.objects.filter(address=address).exists():
+                            updated += 1  # existente (pulado)
+                        else:
+                            NftCollection.objects.create(address=address, **defaults)
+                            created += 1
+
+                except Exception as e:
+                    errors.append(
+                        {
+                            "index": idx,
+                            "address": obj.get("address", "N/A"),
+                            "error": str(e),
+                        }
+                    )
+
+        _import()
+
+        response_data = {
+            "created": created,
+            "updated": updated,
+            "errors_count": len(errors),
+            "total": len(items),
+        }
+
+        if errors:
+            response_data["errors"] = errors
+
+        return Response(response_data, status=status.HTTP_200_OK)

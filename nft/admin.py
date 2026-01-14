@@ -15,6 +15,9 @@ from django.conf import settings
 from .models import NFTItem, PricingConfig, NFTItemAccess
 from nft.models import NftCollection
 
+# Import admin for collections to register it
+from .admin.collections import NftCollectionAdmin  # noqa: F401
+
 
 @admin.register(NFTItem)
 class NFTItemAdmin(admin.ModelAdmin):
