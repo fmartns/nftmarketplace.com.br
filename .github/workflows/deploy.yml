@@ -75,6 +75,7 @@ jobs:
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           FLOWER_BASIC_AUTH: ${{ secrets.FLOWER_BASIC_AUTH }}
           LE_EMAIL: ${{ secrets.LE_EMAIL }}
+          ABACATEPAY_WEBHOOK_SECRET: ${{ secrets.ABACATEPAY_WEBHOOK_SECRET }}
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
@@ -166,6 +167,7 @@ jobs:
           API_ORIGIN=https://api.nftmarketplace.com.br
           FLOWER_BASIC_AUTH=${{ secrets.FLOWER_BASIC_AUTH }}
           LE_EMAIL=${{ secrets.LE_EMAIL }}
+          ABACATEPAY_WEBHOOK_SECRET=${{ secrets.ABACATEPAY_WEBHOOK_SECRET }}
           ENVEOF
           
           # Check if certificates already exist (check multiple possible locations)
