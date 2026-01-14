@@ -253,7 +253,8 @@ jobs:
               --non-interactive \
               -d nftmarketplace.com.br \
               -d www.nftmarketplace.com.br \
-              -d api.nftmarketplace.com.br; then
+              -d api.nftmarketplace.com.br \
+              -d portainer.nftmarketplace.com.br; then
               
               echo "Certificados SSL obtidos com sucesso!"
               

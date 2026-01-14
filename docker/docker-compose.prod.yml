@@ -169,6 +169,20 @@ services:
     networks:
       - nft_portal_network
 
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - nft_portal_network
+    command: -H unix:///var/run/docker.sock
+
 networks:
   nft_portal_network:
     driver: bridge
@@ -182,3 +196,4 @@ volumes:
   frontend_dist:
   letsencrypt:
   certbot-challenge:
+  portainer_data:
