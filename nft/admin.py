@@ -7,6 +7,7 @@ from django.http import JsonResponse, HttpResponse
 from decimal import Decimal
 import json
 import requests
+import hashlib
 from PIL import Image, ImageDraw, ImageFont
 import io
 import os
@@ -98,9 +99,20 @@ class NFTItemAdmin(admin.ModelAdmin):
                 messages.error(request, f"JSON inválido: {e}")
                 return render(request, "admin/nft/nftitem/import_json.html", context)
 
-            # Aceita {"nfts": [...]} ou lista de objetos, ou objeto único
+            # Aceita diferentes formatos:
+            # 1. {"success": true, "data": [...]} - formato Habbo API
+            # 2. {"nfts": [...]} - formato custom
+            # 3. Lista de objetos
+            # 4. Objeto único
             entries = []
             if (
+                isinstance(data, dict)
+                and "data" in data
+                and isinstance(data["data"], list)
+            ):
+                # Formato Habbo API: {"success": true, "data": [...]}
+                entries = data["data"]
+            elif (
                 isinstance(data, dict)
                 and "nfts" in data
                 and isinstance(data["nfts"], list)
@@ -113,7 +125,7 @@ class NFTItemAdmin(admin.ModelAdmin):
             else:
                 messages.error(
                     request,
-                    'Estrutura JSON não reconhecida. Informe um objeto, lista ou {"nfts": [...]}.',
+                    'Estrutura JSON não reconhecida. Informe um objeto, lista, {"data": [...]} ou {"nfts": [...]}.',
                 )
                 return render(request, "admin/nft/nftitem/import_json.html", context)
 
@@ -128,6 +140,10 @@ class NFTItemAdmin(admin.ModelAdmin):
                     try:
                         if not isinstance(entry, dict):
                             raise ValueError("Entrada inválida; esperado objeto")
+
+                        # Suporta dois formatos:
+                        # 1. Formato Django export: {"pk": 123, "fields": {...}}
+                        # 2. Formato direto/Habbo API: {"id": "...", "name": "...", ...}
                         fields = (
                             entry.get("fields")
                             if isinstance(entry.get("fields"), dict)
@@ -135,81 +151,132 @@ class NFTItemAdmin(admin.ModelAdmin):
                         )
                         pk = entry.get("pk")
                         if not isinstance(fields, dict):
-                            raise ValueError("Campo 'fields' ausente ou inválido")
+                            raise ValueError("Entrada inválida; esperado objeto")
 
                         defaults = {}
+                        is_habbo_format = (
+                            "id" in fields
+                            and "name" in fields
+                            and "collection_name" in fields
+                        )
 
-                        # Texto/booleanos
-                        direct_keys = [
-                            "type",
-                            "blueprint",
-                            "image_url",
-                            "name",
-                            "name_pt_br",
-                            "source",
-                            "is_crafted_item",
-                            "is_craft_material",
-                            "rarity",
-                            "item_type",
-                            "item_sub_type",
-                            "product_code",
-                            "product_type",
-                            "material",
-                        ]
-                        for key in direct_keys:
-                            if key in fields and fields[key] is not None:
-                                defaults[key] = fields[key]
+                        # Mapeamento para formato Habbo API
+                        if is_habbo_format:
+                            # Formato Habbo API: mapear campos
+                            defaults["product_code"] = fields.get("id", "").strip()
+                            defaults["name"] = fields.get("name", "").strip()
+                            defaults["image_url"] = fields.get("image_url", "").strip()
 
-                        # Inteiros
-                        if fields.get("number") is not None:
-                            try:
-                                defaults["number"] = int(fields.get("number"))
-                            except Exception:
-                                pass
-                        if fields.get("seven_day_sales_count") is not None:
-                            try:
-                                defaults["seven_day_sales_count"] = int(
-                                    fields.get("seven_day_sales_count")
-                                )
-                            except Exception:
-                                pass
-
-                        # Decimais
-                        for src in [
-                            "last_price_eth",
-                            "last_price_usd",
-                            "last_price_brl",
-                            "markup_percent",
-                            "seven_day_volume_brl",
-                            "seven_day_avg_price_brl",
-                            "seven_day_last_sale_brl",
-                            "seven_day_price_change_pct",
-                        ]:
-                            if fields.get(src) not in (None, ""):
+                            # Mapear preço (assumindo ETH)
+                            if fields.get("current_price") is not None:
                                 try:
-                                    defaults[src] = Decimal(str(fields.get(src)))
+                                    defaults["last_price_eth"] = Decimal(
+                                        str(fields.get("current_price"))
+                                    )
+                                except (ValueError, TypeError):
+                                    pass
+
+                            # Mapear raridade baseado em isRelic e isLtd
+                            if fields.get("isRelic"):
+                                defaults["rarity"] = "Relic"
+                            elif fields.get("isLtd"):
+                                defaults["rarity"] = "LTD"
+                            else:
+                                defaults["rarity"] = "Common"
+
+                            # Definir source como Habbo
+                            defaults["source"] = "habbo"
+
+                            # Associar coleção
+                            collection_name = fields.get("collection_name", "").strip()
+                            if collection_name:
+                                # Gerar endereço único baseado no nome da coleção (hash)
+                                hash_obj = hashlib.sha256(
+                                    collection_name.encode()
+                                ).hexdigest()[:40]
+                                placeholder_address = f"0x{hash_obj}"
+
+                                collection, _ = NftCollection.objects.get_or_create(
+                                    name=collection_name,
+                                    defaults={
+                                        "address": placeholder_address,
+                                        "description": f"Coleção {collection_name}",
+                                    },
+                                )
+                                defaults["collection"] = collection
+                        else:
+                            # Formato Django export ou formato direto com campos do modelo
+                            # Texto/booleanos
+                            direct_keys = [
+                                "type",
+                                "blueprint",
+                                "image_url",
+                                "name",
+                                "name_pt_br",
+                                "source",
+                                "is_crafted_item",
+                                "is_craft_material",
+                                "rarity",
+                                "item_type",
+                                "item_sub_type",
+                                "product_code",
+                                "product_type",
+                                "material",
+                            ]
+                            for key in direct_keys:
+                                if key in fields and fields[key] is not None:
+                                    defaults[key] = fields[key]
+
+                            # Inteiros (apenas para formato Django)
+                            if fields.get("number") is not None:
+                                try:
+                                    defaults["number"] = int(fields.get("number"))
+                                except Exception:
+                                    pass
+                            if fields.get("seven_day_sales_count") is not None:
+                                try:
+                                    defaults["seven_day_sales_count"] = int(
+                                        fields.get("seven_day_sales_count")
+                                    )
                                 except Exception:
                                     pass
 
-                        # Datetime
-                        if fields.get("seven_day_updated_at"):
-                            try:
-                                defaults["seven_day_updated_at"] = parse_datetime(
-                                    fields.get("seven_day_updated_at")
-                                )
-                            except Exception:
-                                pass
+                            # Decimais (apenas para formato Django)
+                            for src in [
+                                "last_price_eth",
+                                "last_price_usd",
+                                "last_price_brl",
+                                "markup_percent",
+                                "seven_day_volume_brl",
+                                "seven_day_avg_price_brl",
+                                "seven_day_last_sale_brl",
+                                "seven_day_price_change_pct",
+                            ]:
+                                if fields.get(src) not in (None, ""):
+                                    try:
+                                        defaults[src] = Decimal(str(fields.get(src)))
+                                    except Exception:
+                                        pass
 
-                        # ForeignKey: collection por id
-                        if fields.get("collection"):
-                            try:
-                                defaults["collection"] = NftCollection.objects.get(
-                                    pk=fields.get("collection")
-                                )
-                            except NftCollection.DoesNotExist:
-                                raise ValueError(
-                                    f"Coleção com id={fields.get('collection')} não existe"
-                                )
+                            # Datetime (apenas para formato Django)
+                            if fields.get("seven_day_updated_at"):
+                                try:
+                                    defaults["seven_day_updated_at"] = parse_datetime(
+                                        fields.get("seven_day_updated_at")
+                                    )
+                                except Exception:
+                                    pass
+
+                            # ForeignKey: collection por id (apenas para formato Django)
+                            if fields.get("collection"):
+                                try:
+                                    defaults["collection"] = NftCollection.objects.get(
+                                        pk=fields.get("collection")
+                                    )
+                                except NftCollection.DoesNotExist:
+                                    raise ValueError(
+                                        f"Coleção com id={fields.get('collection')} não existe"
+                                    )
 
                         product_code = fields.get("product_code")
 
