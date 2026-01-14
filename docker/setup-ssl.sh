@@ -47,13 +47,116 @@ echo "⚠️  Certificados SSL não encontrados"
 echo "Iniciando processo de obtenção de certificados..."
 echo ""
 
+# IMPORTANTE: Sempre garantir que está usando configuração HTTP antes de iniciar nginx
+echo "Garantindo que nginx está usando configuração HTTP (necessário para obter certificados)..."
+if [ -f "$NGINX_CONF_DIR/nginx.conf.orig" ]; then
+    cp "$NGINX_CONF_DIR/nginx.conf.orig" "$NGINX_CONF_DIR/nginx.conf"
+    echo "✅ Configuração HTTP restaurada de nginx.conf.orig"
+elif [ -f "$NGINX_CONF_DIR/nginx.conf" ] && grep -q "ssl_certificate" "$NGINX_CONF_DIR/nginx.conf"; then
+    echo "⚠️  nginx.conf.orig não encontrado, mas nginx.conf tem SSL. Criando configuração HTTP básica..."
+    # Criar configuração HTTP básica
+    cat > "$NGINX_CONF_DIR/nginx.conf" << 'EOF'
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name nftmarketplace.com.br www.nftmarketplace.com.br;
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location ~ /\. { deny all; }
+    location = /.env { return 404; }
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location ~* \.(?:js|css|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot)$ {
+        access_log off;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        try_files $uri =404;
+    }
+
+    location / {
+        try_files $uri /index.html;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.nftmarketplace.com.br;
+
+    location ^~ /.well-known/acme-challenge/ {
+        alias /var/www/certbot/.well-known/acme-challenge/;
+        default_type "text/plain";
+        try_files $uri =404;
+    }
+
+    location ~ /\. { deny all; }
+    location = /.env { return 404; }
+
+    location /static/ {
+        alias /app/staticfiles/;
+        access_log off;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        try_files $uri =404;
+    }
+    location /media/ {
+        alias /app/media/;
+        access_log off;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000";
+        try_files $uri =404;
+    }
+
+    location / {
+        proxy_pass http://web:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+        client_max_body_size 25m;
+        proxy_read_timeout 60s;
+    }
+}
+EOF
+    echo "✅ Configuração HTTP básica criada"
+else
+    echo "✅ Configuração HTTP já está correta"
+fi
+
+# Se o nginx estiver rodando, verificar se está usando HTTP e reiniciar se necessário
+if docker ps --format '{{.Names}}' | grep -q '^docker-nginx-1$'; then
+    echo ""
+    echo "Nginx está rodando. Verificando configuração..."
+    if grep -q "ssl_certificate" "$NGINX_CONF_DIR/nginx.conf"; then
+        echo "⚠️  Nginx está usando configuração SSL mas certificados não existem!"
+        echo "Parando nginx para atualizar configuração..."
+        cd /opt/nft_portal
+        docker-compose -f docker/docker-compose.prod.yml --env-file .env stop nginx 2>/dev/null || true
+        sleep 2
+    fi
+fi
+
 # Verificar se o nginx está rodando
 if ! docker ps --format '{{.Names}}' | grep -q '^docker-nginx-1$'; then
-    echo "⚠️  Nginx não está rodando. Iniciando nginx com configuração HTTP..."
+    echo ""
+    echo "⚠️  Nginx não está rodando. Verificando dependências..."
     
-    # Garantir que está usando configuração HTTP
-    if [ -f "$NGINX_CONF_DIR/nginx.conf.orig" ]; then
-        cp "$NGINX_CONF_DIR/nginx.conf.orig" "$NGINX_CONF_DIR/nginx.conf"
+    # Verificar se o web está healthy
+    WEB_HEALTHY=false
+    if docker ps --format '{{.Names}}\t{{.Status}}' | grep '^docker-web-1' | grep -q 'healthy'; then
+        WEB_HEALTHY=true
+        echo "✅ Serviço web está healthy"
+    else
+        echo "⚠️  Serviço web não está healthy. Nginx precisa estar rodando para o desafio ACME."
+        echo "Tentando iniciar nginx mesmo assim (pode falhar se web não estiver pronto)..."
     fi
     
     cd /opt/nft_portal
@@ -61,10 +164,53 @@ if ! docker ps --format '{{.Names}}' | grep -q '^docker-nginx-1$'; then
     export IMAGE_NAME=${IMAGE_NAME:-fmartns/nftmarketplace.com.br}
     export TAG=${TAG:-latest}
     
-    docker-compose -f docker/docker-compose.prod.yml --env-file .env up -d nginx
+    # Tentar iniciar nginx normalmente primeiro
+    if docker-compose -f docker/docker-compose.prod.yml --env-file .env up -d nginx 2>&1 | grep -q "dependency\|unhealthy"; then
+        echo ""
+        echo "⚠️  Nginx não pode iniciar devido à dependência do web."
+        echo "Aguardando web ficar healthy (timeout de 2 minutos)..."
+        
+        # Aguardar web ficar healthy
+        TIMEOUT=120
+        ELAPSED=0
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+            if docker ps --format '{{.Names}}\t{{.Status}}' | grep '^docker-web-1' | grep -q 'healthy'; then
+                echo "✅ Web está healthy agora. Tentando iniciar nginx novamente..."
+                docker-compose -f docker/docker-compose.prod.yml --env-file .env up -d nginx
+                break
+            fi
+            sleep 5
+            ELAPSED=$((ELAPSED + 5))
+            echo "   Aguardando... (${ELAPSED}s/${TIMEOUT}s)"
+        done
+        
+        if [ $ELAPSED -ge $TIMEOUT ]; then
+            echo ""
+            echo "❌ Timeout: Web não ficou healthy a tempo."
+            echo ""
+            echo "Últimos logs do web:"
+            docker logs docker-web-1 --tail 20 2>&1 || echo "Container web não encontrado"
+            echo ""
+            echo "Para diagnosticar o problema do web:"
+            echo "  1. Verifique os logs: docker logs docker-web-1"
+            echo "  2. Verifique o status: docker ps --filter name=web"
+            echo "  3. Verifique dependências: docker ps --filter name=db --filter name=redis"
+            echo ""
+            echo "Depois que o web estiver funcionando, você pode:"
+            echo "  - Executar este script novamente: ./setup-ssl.sh"
+            echo "  - Ou iniciar o nginx manualmente: docker-compose -f docker/docker-compose.prod.yml --env-file .env up -d nginx"
+            exit 1
+        fi
+    fi
     
     echo "Aguardando nginx iniciar..."
     sleep 10
+    
+    # Verificar se nginx iniciou
+    if ! docker ps --format '{{.Names}}' | grep -q '^docker-nginx-1$'; then
+        echo "❌ Nginx não iniciou. Verifique os logs: docker logs docker-nginx-1"
+        exit 1
+    fi
 fi
 
 # Verificar se o certbot está rodando
