@@ -37,7 +37,7 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
 
     Implementação exata conforme documentação da AbacatePay:
     https://docs.abacatepay.com/pages/webhooks
-    
+
     Args:
         raw_body: Corpo bruto da requisição como string (utf-8)
         signature_from_header: Assinatura recebida no header X-Webhook-Signature (base64)
@@ -66,7 +66,7 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
             body_buffer,
             hashlib.sha256,
         ).digest()
-        
+
         # Converte para base64 (conforme documentação)
         expected_sig = base64.b64encode(hmac_digest).decode("utf-8")
 
@@ -135,7 +135,7 @@ def AbacatePayWebhookView(request):
         # 1. Secret na URL (método simples)
         # 2. Assinatura HMAC no header (integridade do corpo)
         signature_valid = False
-        
+
         # Se houver assinatura no header, valida via HMAC
         if signature:
             signature_valid = verify_webhook_signature(raw_body_str, signature)
@@ -169,11 +169,11 @@ def AbacatePayWebhookView(request):
             """
             Evento: billing.paid
             Disparado quando um pagamento é confirmado.
-            
+
             O payload varia dependendo da origem:
             - PIX QR Code: contém pixQrCode
             - Cobrança: contém billing com billing_id
-            
+
             Payload exemplo (PIX):
             {
                 "id": "log_12345abcdef",
@@ -189,7 +189,7 @@ def AbacatePayWebhookView(request):
                 "devMode": false,
                 "event": "billing.paid"
             }
-            
+
             Payload exemplo (Cobrança):
             {
                 "id": "log_12345abcdef",
@@ -335,7 +335,7 @@ def AbacatePayWebhookView(request):
             """
             Evento: withdraw.done
             Disparado quando um saque é concluído com sucesso.
-            
+
             Payload:
             {
                 "id": "log_12345abcdef",
@@ -362,12 +362,12 @@ def AbacatePayWebhookView(request):
             external_id = transaction.get("externalId")
             amount_cents = transaction.get("amount", 0)
             status = transaction.get("status")
-            
+
             logger.info(
                 f"Saque concluído: transaction_id={transaction_id}, "
                 f"external_id={external_id}, amount={amount_cents}, status={status}"
             )
-            
+
             # TODO: Implementar lógica de processamento do saque concluído
             # Exemplo: atualizar status de saque no banco de dados, notificar usuário, etc.
 
@@ -375,7 +375,7 @@ def AbacatePayWebhookView(request):
             """
             Evento: withdraw.failed
             Disparado quando um saque não é concluído.
-            
+
             Payload:
             {
                 "id": "log_12345abcdef",
@@ -402,12 +402,12 @@ def AbacatePayWebhookView(request):
             external_id = transaction.get("externalId")
             amount_cents = transaction.get("amount", 0)
             status = transaction.get("status")
-            
+
             logger.warning(
                 f"Saque falhado: transaction_id={transaction_id}, "
                 f"external_id={external_id}, amount={amount_cents}, status={status}"
             )
-            
+
             # TODO: Implementar lógica de processamento do saque falhado
             # Exemplo: atualizar status de saque no banco de dados, notificar usuário, reverter saldo, etc.
 
