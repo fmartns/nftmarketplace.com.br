@@ -103,7 +103,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "is_active",
-                    models.BooleanField(default=True, help_text="Se o cupom está ativo"),
+                    models.BooleanField(
+                        default=True, help_text="Se o cupom está ativo"
+                    ),
                 ),
                 (
                     "valid_from",

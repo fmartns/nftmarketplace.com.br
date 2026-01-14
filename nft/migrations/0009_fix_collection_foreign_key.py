@@ -18,35 +18,43 @@ class Migration(migrations.Migration):
         # Verificar se a coluna collection_id existe antes de adicionar constraint
         with schema_editor.connection.cursor() as cursor:
             if vendor == "postgresql":
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT EXISTS (
                         SELECT 1 FROM information_schema.columns 
                         WHERE table_name='nft_nftitem' AND column_name='collection_id'
                     );
-                """)
+                """
+                )
             elif vendor == "mysql":
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT COUNT(*) FROM information_schema.columns 
                     WHERE table_name='nft_nftitem' AND column_name='collection_id'
-                """)
+                """
+                )
             else:
                 # Para outros bancos, assumir que existe
                 cursor.execute("SELECT 1")
-            
+
             column_exists = cursor.fetchone()[0]
-            
+
             if not column_exists:
                 # Se a coluna não existe, criar primeiro
                 if vendor == "postgresql":
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         ALTER TABLE nft_nftitem 
                         ADD COLUMN collection_id INTEGER NULL;
-                    """)
+                    """
+                    )
                 elif vendor == "mysql":
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         ALTER TABLE nft_nftitem 
                         ADD COLUMN collection_id INT NULL;
-                    """)
+                    """
+                    )
 
         if vendor == "mysql":
             drop_sql = """
