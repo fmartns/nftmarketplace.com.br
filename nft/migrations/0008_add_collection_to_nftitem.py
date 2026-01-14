@@ -14,7 +14,22 @@ class Migration(migrations.Migration):
     operations = [
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                # Database operations: do nothing since column already exists
+                # Create column if it doesn't exist (for fresh databases)
+                migrations.RunSQL(
+                    sql="""
+                        DO $$
+                        BEGIN
+                            IF NOT EXISTS (
+                                SELECT 1 FROM information_schema.columns 
+                                WHERE table_name='nft_nftitem' AND column_name='collection_id'
+                            ) THEN
+                                ALTER TABLE nft_nftitem 
+                                ADD COLUMN collection_id INTEGER NULL;
+                            END IF;
+                        END $$;
+                    """,
+                    reverse_sql="ALTER TABLE nft_nftitem DROP COLUMN IF EXISTS collection_id;",
+                ),
             ],
             state_operations=[
                 # State operations: update Django's state to reflect the existing column
