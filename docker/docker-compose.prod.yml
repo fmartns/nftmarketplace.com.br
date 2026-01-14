@@ -49,10 +49,10 @@ services:
       /bin/sh -c "
       echo 'Waiting for database...' &&
       sleep 10 &&
-      python manage.py migrate --noinput &&
-      python manage.py collectstatic --noinput &&
+      poetry run python manage.py migrate --noinput &&
+      poetry run python manage.py collectstatic --noinput &&
       echo 'Starting Django server...' &&
-      gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
+      poetry run gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     volumes:
       - staticfiles:/app/staticfiles
       - media:/app/media
