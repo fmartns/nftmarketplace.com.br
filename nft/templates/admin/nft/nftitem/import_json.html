@@ -6,8 +6,13 @@
     <h1>{% trans "Importar NFTs via JSON" %}</h1>
 
     <p class="help">
-      Cole o JSON seguindo o template: {"nfts": [{"model": "nft.nftitem", "pk": 123, "fields": { ... }}]}.
-      Também aceitamos apenas a lista de objetos ou um único objeto com "fields".
+      Cole o JSON. Formatos aceitos:
+      <ul>
+        <li><strong>Formato Habbo API:</strong> {"success": true, "data": [{"id": "...", "name": "...", "collection_name": "...", ...}]}</li>
+        <li><strong>Formato Django export:</strong> {"nfts": [{"model": "nft.nftitem", "pk": 123, "fields": { ... }}]}</li>
+        <li><strong>Lista direta:</strong> [{"name": "...", "product_code": "...", ...}]</li>
+        <li><strong>Objeto único:</strong> {"name": "...", "product_code": "...", ...}</li>
+      </ul>
     </p>
 
     <form method="post" novalidate>
