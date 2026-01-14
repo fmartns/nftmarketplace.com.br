@@ -3,7 +3,7 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-    command: ["/bin/sh", "-c", "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"]
+    command: ["/bin/sh", "-c", "poetry run python manage.py migrate --noinput && poetry run python manage.py runserver 0.0.0.0:8000"]
     ports:
       - "8001:8000"
     env_file:
@@ -16,8 +16,6 @@ services:
     volumes:
       # Mount source code for hot reload
       - ../:/app
-      # Exclude virtual environment from mount to use container's version
-      - /app/.venv
     depends_on:
       db:
         condition: service_healthy
@@ -94,7 +92,7 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-    command: ["/bin/sh", "-c", "celery -A core worker -l info -Q celery,default -n worker1@%h -E"]
+    command: ["/bin/sh", "-c", "poetry run celery -A core worker -l info -Q celery,default -n worker1@%h -E"]
     env_file:
       - ../.env
     environment:
@@ -105,8 +103,6 @@ services:
     volumes:
       # Mount source code for hot reload
       - ../:/app
-      # Exclude virtual environment from mount to use container's version
-      - /app/.venv
     depends_on:
       db:
         condition: service_healthy
@@ -120,7 +116,7 @@ services:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-    command: ["/bin/sh", "-c", "celery -A core beat -l info --schedule=/app/celerybeat-schedule/celerybeat-schedule"]
+    command: ["/bin/sh", "-c", "poetry run celery -A core beat -l info --schedule=/app/celerybeat-schedule/celerybeat-schedule"]
     env_file:
       - ../.env
     environment:
@@ -136,8 +132,6 @@ services:
     volumes:
       # Mount source code for hot reload
       - ../:/app
-      # Exclude virtual environment from mount to use container's version
-      - /app/.venv
       # Celery beat schedule persistence
       - ../data/celerybeat:/app/celerybeat-schedule
     networks:
