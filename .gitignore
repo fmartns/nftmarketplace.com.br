@@ -39,3 +39,16 @@ Thumbs.db
 .env
 *.env
 .env.*
+
+# Chaves privadas
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.p8
+*.p10
+*.p7b
+*.p7c
+*.p7m
+*.p7s
