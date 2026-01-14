@@ -104,6 +104,16 @@ jobs:
           # Navigate to project directory
           cd /opt/nft_portal
           
+          # Update code from repository (pull latest changes)
+          echo "Atualizando código do repositório..."
+          if [ -d ".git" ]; then
+            sudo git fetch origin
+            sudo git reset --hard origin/main
+            sudo git clean -fd
+          else
+            echo "Aviso: Diretório não é um repositório git, pulando atualização do código."
+          fi
+          
           # Stop and remove existing containers (use docker-compose for broader compatibility)
           echo "Parando containers existentes..."
           sudo docker-compose -f docker/docker-compose.prod.yml --env-file .env down || true
