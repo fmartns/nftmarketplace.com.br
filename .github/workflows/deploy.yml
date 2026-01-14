@@ -259,6 +259,9 @@ jobs:
               sleep 15
             else
               echo "Aviso: Não foi possível obter certificados SSL nesta execução."
+              echo "Restaurando configuração HTTP..."
+              sudo cp docker/nginx/nginx.conf.orig docker/nginx/nginx.conf
+              sudo docker-compose -f docker/docker-compose.prod.yml --env-file .env restart nginx || true
             fi
           fi
           
