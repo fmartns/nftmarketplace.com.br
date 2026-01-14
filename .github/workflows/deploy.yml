@@ -106,7 +106,7 @@ jobs:
           
           # Stop and remove existing containers (use docker-compose for broader compatibility)
           echo "Parando containers existentes..."
-          sudo docker-compose -f docker/docker-compose.prod.yml down || true
+          sudo docker-compose -f docker/docker-compose.prod.yml --env-file .env down || true
           
           # Force remove any leftover containers with conflicting names
           echo "Removendo containers órfãos..."
@@ -207,7 +207,7 @@ jobs:
           echo "Frontend image final: ${REGISTRY}/${IMAGE_NAME}-frontend:${TAG}"
           
           sudo env REGISTRY="${REGISTRY}" IMAGE_NAME="${IMAGE_NAME}" TAG="${TAG}" \
-            docker-compose -f docker/docker-compose.prod.yml up -d --force-recreate
+            docker-compose -f docker/docker-compose.prod.yml --env-file .env up -d --force-recreate
           
           # Verify containers are using the correct images
           echo "Verificando imagens dos containers..."
@@ -253,8 +253,9 @@ jobs:
               
               # Restart services with HTTPS config
               echo "Reiniciando containers com configuração HTTPS..."
-              sudo docker-compose -f docker/docker-compose.prod.yml down
-              sudo docker-compose -f docker/docker-compose.prod.yml up -d
+              sudo docker-compose -f docker/docker-compose.prod.yml --env-file .env down
+              sudo env REGISTRY="${REGISTRY}" IMAGE_NAME="${IMAGE_NAME}" TAG="${TAG}" \
+                docker-compose -f docker/docker-compose.prod.yml --env-file .env up -d
               sleep 15
             else
               echo "Aviso: Não foi possível obter certificados SSL nesta execução."

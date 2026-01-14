@@ -17,7 +17,10 @@ COPY pyproject.toml poetry.lock* ./
 RUN poetry install --only=main --no-root
 
 COPY . .
+COPY docker/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["poetry", "run", "python", "manage.py", "runserver", "0.0.0.0:8000"]
