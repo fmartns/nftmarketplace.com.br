@@ -59,7 +59,7 @@ services:
     networks:
       - nft_portal_network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/ || exit 1"]
+      test: ["CMD-SHELL", "curl -f -H 'Host: api.nftmarketplace.com.br' http://localhost:8000/health/ || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
