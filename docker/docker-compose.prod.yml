@@ -137,7 +137,7 @@ services:
     image: nginx:1.27-alpine
     depends_on:
       web:
-        condition: service_started
+        condition: service_healthy
       frontend:
         condition: service_started
     volumes:
@@ -153,6 +153,12 @@ services:
     networks:
       - nft_portal_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   certbot:
     image: certbot/certbot:latest
