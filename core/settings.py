@@ -252,7 +252,7 @@ REST_FRAMEWORK = {
 # See: https://drf-spectacular.readthedocs.io/en/latest/settings.html
 SPECTACULAR_SETTINGS = {
     "TITLE": "NFT Portal API",
-    "DESCRIPTION": "API do ecossistema NFT Portal",
+    "DESCRIPTION": "API do NFT Portal",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "SWAGGER_UI_DIST": "SIDECAR",
