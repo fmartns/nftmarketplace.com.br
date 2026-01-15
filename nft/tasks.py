@@ -109,7 +109,7 @@ def update_nft_price(self, product_code):
 def update_all_nft_prices_nightly():
     """
     Task principal para atualizar todos os preços dos NFTs durante a madrugada.
-    Esta task agenda atualizações individuais para cada produto com intervalo de 6 segundos.
+    Esta task agenda atualizações individuais para cada produto com intervalo de 3.5 segundos.
     """
     try:
         logger.info("Iniciando rotina de atualização de preços da madrugada")
@@ -128,11 +128,11 @@ def update_all_nft_prices_nightly():
             logger.warning("Nenhum produto encontrado para atualização")
             return {"status": "skipped", "reason": "Nenhum produto encontrado"}
 
-        # Agenda atualizações individuais com intervalo de 6 segundos
+        # Agenda atualizações individuais com intervalo de 3.5 segundos
         scheduled_count = 0
         for i, product_code in enumerate(nft_items):
-            # Calcula o delay: 6 segundos * índice do item
-            delay_seconds = i * 6
+            # Calcula o delay: 3.5 segundos * índice do item
+            delay_seconds = i * 3.5
 
             # Agenda a task individual
             update_nft_price.apply_async(args=[product_code], countdown=delay_seconds)
@@ -145,18 +145,117 @@ def update_all_nft_prices_nightly():
         logger.info(
             "Rotina da madrugada agendada com sucesso! %d produtos serão atualizados ao longo de %.1f minutos",
             scheduled_count,
-            scheduled_count * 6 / 60,
+            scheduled_count * 3.5 / 60,
         )
 
         return {
             "status": "success",
             "total_items": total_items,
             "scheduled_count": scheduled_count,
-            "estimated_duration_minutes": scheduled_count * 6 / 60,
+            "estimated_duration_minutes": scheduled_count * 3.5 / 60,
         }
 
     except Exception as e:
         logger.error("Erro na rotina de atualização da madrugada: %s", str(e))
+        return {"status": "failed", "error": str(e)}
+
+
+@shared_task
+def update_all_nft_prices_sequential():
+    """
+    Task para atualizar todos os preços dos NFTs sequencialmente.
+    Processa um item a cada 3.5 segundos de forma sequencial (não paralela).
+    """
+    import time
+
+    try:
+        logger.info("Iniciando atualização sequencial de preços dos NFTs")
+
+        # Busca todos os produtos que têm product_code válido
+        nft_items = (
+            NFTItem.objects.filter(product_code__isnull=False)
+            .exclude(product_code__exact="")
+            .values_list("product_code", flat=True)
+        )
+
+        total_items = len(nft_items)
+        logger.info("Total de produtos para atualizar: %d", total_items)
+
+        if total_items == 0:
+            logger.warning("Nenhum produto encontrado para atualização")
+            return {"status": "skipped", "reason": "Nenhum produto encontrado"}
+
+        # Processa sequencialmente, um item a cada 3.5 segundos
+        updated_count = 0
+        failed_count = 0
+        start_time = time.time()
+
+        for i, product_code in enumerate(nft_items):
+            try:
+                logger.info(
+                    "Processando item %d/%d: %s", i + 1, total_items, product_code
+                )
+
+                # Chama a task de atualização de forma síncrona usando .apply()
+                # Isso executa a task imediatamente e retorna o resultado
+                task_result = update_nft_price.apply(args=[product_code])
+                result = (
+                    task_result.result
+                    if hasattr(task_result, "result")
+                    else task_result
+                )
+
+                if result and result.get("status") == "success":
+                    updated_count += 1
+                else:
+                    failed_count += 1
+                    logger.warning("Falha ao atualizar %s: %s", product_code, result)
+
+                # Aguarda 3.5 segundos antes do próximo item (exceto no último)
+                if i < total_items - 1:
+                    time.sleep(3.5)
+
+                # Log a cada 50 itens
+                if (i + 1) % 50 == 0:
+                    elapsed = time.time() - start_time
+                    remaining = (total_items - (i + 1)) * 3.5
+                    logger.info(
+                        "Progresso: %d/%d atualizados (%.1f%%). Tempo decorrido: %.1fmin. Tempo restante estimado: %.1fmin",
+                        i + 1,
+                        total_items,
+                        (i + 1) / total_items * 100,
+                        elapsed / 60,
+                        remaining / 60,
+                    )
+
+            except Exception as e:
+                failed_count += 1
+                logger.error(
+                    "Erro ao processar %s: %s", product_code, str(e), exc_info=True
+                )
+                # Continua para o próximo item mesmo em caso de erro
+                if i < total_items - 1:
+                    time.sleep(3.5)
+
+        elapsed_time = time.time() - start_time
+
+        logger.info(
+            "Atualização sequencial concluída! %d atualizados, %d falhas. Tempo total: %.1f minutos",
+            updated_count,
+            failed_count,
+            elapsed_time / 60,
+        )
+
+        return {
+            "status": "success",
+            "total_items": total_items,
+            "updated_count": updated_count,
+            "failed_count": failed_count,
+            "elapsed_minutes": elapsed_time / 60,
+        }
+
+    except Exception as e:
+        logger.error("Erro na atualização sequencial: %s", str(e), exc_info=True)
         return {"status": "failed", "error": str(e)}
 
 

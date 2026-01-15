@@ -298,14 +298,17 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_RESULT_EXPIRES = 3600
 
+# Configuração para usar crontab para horário específico
+from celery.schedules import crontab  # noqa: E402
+
 # Configurações de Agendamento (Beat Schedule)
 CELERY_BEAT_SCHEDULE = {
-    # Rotina da madrugada - atualização de preços dos NFTs
-    "update-nft-prices-nightly": {
-        "task": "nft.tasks.update_all_nft_prices_nightly",
-        "schedule": 60.0 * 60.0 * 24.0,  # Executa a cada 24 horas
+    # Atualização de preços dos NFTs - Todo dia às 3h da manhã (sequencial, um item a cada 3.5s)
+    "update-all-nft-prices-3am": {
+        "task": "nft.tasks.update_all_nft_prices_sequential",
+        "schedule": crontab(hour=3, minute=0),  # Executa diariamente às 3h00
         "options": {
-            "expires": 60 * 60 * 2,  # Expira em 2 horas se não executar
+            "expires": 60 * 60 * 4,  # Expira em 4 horas se não executar
         },
     },
     # Limpeza semanal de dados antigos
@@ -317,22 +320,6 @@ CELERY_BEAT_SCHEDULE = {
         },
     },
 }
-
-# Configuração para usar crontab para horário específico (1h da manhã)
-from celery.schedules import crontab  # noqa: E402
-
-CELERY_BEAT_SCHEDULE.update(
-    {
-        # Rotina da madrugada às 1h00
-        "update-nft-prices-at-1am": {
-            "task": "nft.tasks.update_all_nft_prices_nightly",
-            "schedule": crontab(hour=1, minute=0),  # Executa diariamente às 1h00
-            "options": {
-                "expires": 60 * 60 * 2,  # Expira em 2 horas se não executar
-            },
-        },
-    }
-)
 
 # Auth User Model
 AUTH_USER_MODEL = "accounts.User"
