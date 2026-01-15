@@ -42,6 +42,8 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:buildcache,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-web:latest
@@ -54,6 +56,8 @@ jobs:
           file: frontend/Dockerfile
           target: prod
           push: true
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:buildcache,mode=max
           build-args: |
             VITE_API_BASE_URL=https://api.nftmarketplace.com.br
           tags: |
@@ -140,8 +144,16 @@ jobs:
           
           # Pull fresh images with specific tag
           echo "Fazendo pull das imagens..."
-          sudo docker pull ${REGISTRY}/${IMAGE_NAME}-web:${TAG}
-          sudo docker pull ${REGISTRY}/${IMAGE_NAME}-frontend:${TAG}
+          echo "Pull da imagem web: ${REGISTRY}/${IMAGE_NAME}-web:${TAG}"
+          if ! sudo docker pull ${REGISTRY}/${IMAGE_NAME}-web:${TAG}; then
+            echo "ERRO: Falha ao fazer pull da imagem web. Tentando latest..."
+            sudo docker pull ${REGISTRY}/${IMAGE_NAME}-web:latest || true
+          fi
+          echo "Pull da imagem frontend: ${REGISTRY}/${IMAGE_NAME}-frontend:${TAG}"
+          if ! sudo docker pull ${REGISTRY}/${IMAGE_NAME}-frontend:${TAG}; then
+            echo "ERRO: Falha ao fazer pull da imagem frontend. Tentando latest..."
+            sudo docker pull ${REGISTRY}/${IMAGE_NAME}-frontend:latest || true
+          fi
           
           # Tag as latest
           echo "Marcando imagens como latest..."
