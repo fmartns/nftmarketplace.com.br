@@ -327,6 +327,11 @@ AUTH_USER_MODEL = "accounts.User"
 # AbacatePay Configuration
 ABACATEPAY_API_BASE_URL = os.getenv("ABACATEPAY_API_BASE_URL")
 ABACATEPAY_API_KEY = os.getenv("ABACATEPAY_API_KEY", "")
-ABACATEPAY_PUBLIC_KEY = os.getenv("ABACATEPAY_PUBLIC_KEY")
+# Chave pública HMAC da AbacatePay (conforme documentação oficial)
+# Esta é uma chave pública compartilhada, não é secreta
+ABACATEPAY_PUBLIC_KEY = os.getenv(
+    "ABACATEPAY_PUBLIC_KEY",
+    "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9",
+)
 ABACATEPAY_WEBHOOK_SECRET = os.getenv("ABACATEPAY_WEBHOOK_SECRET", "")
 ABACATEPAY_DOCS_URL = os.getenv("ABACATEPAY_DOCS_URL", "https://docs.abacatepay.com")
