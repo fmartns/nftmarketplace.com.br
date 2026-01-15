@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 # Chave pública HMAC da AbacatePay (conforme documentação)
 # Carregada do settings (que vem de .env/secrets)
-ABACATEPAY_PUBLIC_KEY = getattr(settings, "ABACATEPAY_PUBLIC_KEY", None) or ""
+# Se não estiver configurada, usa a chave pública padrão da documentação
+_DEFAULT_PUBLIC_KEY = "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9"
+ABACATEPAY_PUBLIC_KEY = getattr(settings, "ABACATEPAY_PUBLIC_KEY", None) or _DEFAULT_PUBLIC_KEY
 
 ABACATEPAY_WEBHOOK_SECRET = getattr(settings, "ABACATEPAY_WEBHOOK_SECRET", "")
 
@@ -66,15 +68,31 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
         # Converte para base64 (conforme documentação)
         expected_sig = base64.b64encode(hmac_digest).decode("utf-8")
 
+        # Log para debug (apenas primeiros caracteres para não expor tudo)
+        logger.debug(
+            f"HMAC Validation - Expected (first 20): {expected_sig[:20]}..., "
+            f"Received (first 20): {signature_from_header[:20] if len(signature_from_header) > 20 else signature_from_header}..., "
+            f"Lengths: expected={len(expected_sig)}, received={len(signature_from_header)}"
+        )
+
         # Converte para bytes para comparação timing-safe
         expected_bytes = expected_sig.encode("utf-8")
         received_bytes = signature_from_header.encode("utf-8")
 
         # Compara usando timing-safe comparison (conforme documentação)
         if len(expected_bytes) != len(received_bytes):
+            logger.warning(
+                f"HMAC length mismatch: expected={len(expected_bytes)}, received={len(received_bytes)}"
+            )
             return False
 
-        return hmac.compare_digest(expected_bytes, received_bytes)
+        is_valid = hmac.compare_digest(expected_bytes, received_bytes)
+        if not is_valid:
+            logger.warning(
+                f"HMAC signature mismatch. Body length: {len(body_buffer)}, "
+                f"Public key length: {len(ABACATEPAY_PUBLIC_KEY)}"
+            )
+        return is_valid
     except Exception as e:
         logger.error(f"Erro ao verificar assinatura: {e}", exc_info=True)
         return False
