@@ -2,7 +2,76 @@
 # Esta migração torna o campo stripe_payment_intent_id opcional (nullable)
 # para permitir criação de pedidos sem esse campo, já que usamos AbacatePay
 
-from django.db import migrations, models
+from django.db import migrations, models, connection
+
+
+def make_stripe_payment_intent_id_nullable_forward(apps, schema_editor):
+    """Torna a coluna stripe_payment_intent_id nullable"""
+    vendor = connection.vendor
+
+    if vendor == "postgresql":
+        # PostgreSQL: usa DO block
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='orders_order' 
+                        AND column_name='stripe_payment_intent_id'
+                    ) THEN
+                        ALTER TABLE orders_order 
+                        ADD COLUMN stripe_payment_intent_id VARCHAR(255) NULL;
+                    ELSIF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='orders_order' 
+                        AND column_name='stripe_payment_intent_id'
+                        AND is_nullable='NO'
+                    ) THEN
+                        ALTER TABLE orders_order 
+                        ALTER COLUMN stripe_payment_intent_id DROP NOT NULL;
+                    END IF;
+                END
+                $$;
+            """
+            )
+    elif vendor == "sqlite":
+        # SQLite: não precisa fazer nada, campos são nullable por padrão
+        # Se a coluna já existe com NOT NULL, precisamos recriar a tabela
+        # Mas como estamos apenas adicionando o campo ao estado, não precisamos fazer nada
+        pass
+    # Para outros bancos, não faz nada (o campo será adicionado pelo AddField)
+
+
+def make_stripe_payment_intent_id_nullable_reverse(apps, schema_editor):
+    """Reverte: torna a coluna NOT NULL novamente"""
+    vendor = connection.vendor
+
+    if vendor == "postgresql":
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='orders_order' 
+                        AND column_name='stripe_payment_intent_id'
+                        AND is_nullable='YES'
+                    ) THEN
+                        UPDATE orders_order 
+                        SET stripe_payment_intent_id = '' 
+                        WHERE stripe_payment_intent_id IS NULL;
+                        
+                        ALTER TABLE orders_order 
+                        ALTER COLUMN stripe_payment_intent_id SET NOT NULL;
+                    END IF;
+                END
+                $$;
+            """
+            )
+    # Para SQLite e outros, não faz nada
 
 
 class Migration(migrations.Migration):
@@ -12,63 +81,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # Usa RunSQL para garantir que a coluna existe e é nullable
-        migrations.RunSQL(
-            # SQL para PostgreSQL: cria a coluna se não existir, ou altera para nullable se existir
-            sql="""
-                DO $$
-                BEGIN
-                    -- Verifica se a coluna existe
-                    IF NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name='orders_order' 
-                        AND column_name='stripe_payment_intent_id'
-                    ) THEN
-                        -- Se a coluna não existe, cria como nullable
-                        ALTER TABLE orders_order 
-                        ADD COLUMN stripe_payment_intent_id VARCHAR(255) NULL;
-                    ELSIF EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name='orders_order' 
-                        AND column_name='stripe_payment_intent_id'
-                        AND is_nullable='NO'
-                    ) THEN
-                        -- Se a coluna existe e é NOT NULL, altera para permitir NULL
-                        ALTER TABLE orders_order 
-                        ALTER COLUMN stripe_payment_intent_id DROP NOT NULL;
-                    END IF;
-                    -- Se a coluna já existe e já é nullable, não faz nada
-                END
-                $$;
-            """,
-            reverse_sql="""
-                -- Reverte: torna a coluna NOT NULL novamente (se necessário)
-                -- Nota: isso pode falhar se houver valores NULL na coluna
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.columns 
-                        WHERE table_name='orders_order' 
-                        AND column_name='stripe_payment_intent_id'
-                        AND is_nullable='YES'
-                    ) THEN
-                        -- Primeiro, atualiza valores NULL para string vazia
-                        UPDATE orders_order 
-                        SET stripe_payment_intent_id = '' 
-                        WHERE stripe_payment_intent_id IS NULL;
-                        
-                        -- Depois, torna NOT NULL
-                        ALTER TABLE orders_order 
-                        ALTER COLUMN stripe_payment_intent_id SET NOT NULL;
-                    END IF;
-                END
-                $$;
-            """,
+        # Usa RunPython para detectar o tipo de banco e executar SQL apropriado
+        migrations.RunPython(
+            make_stripe_payment_intent_id_nullable_forward,
+            make_stripe_payment_intent_id_nullable_reverse,
         ),
         # Atualiza o estado do Django para refletir o campo no modelo
         migrations.SeparateDatabaseAndState(
             database_operations=[
-                # Não faz nada no banco, já alteramos acima com RunSQL
+                # Não faz nada no banco, já alteramos acima com RunPython
             ],
             state_operations=[
                 migrations.AddField(
