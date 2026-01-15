@@ -248,6 +248,20 @@ class Order(models.Model):
         help_text="Observações do pedido",
     )
 
+    stripe_payment_intent_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="ID do PaymentIntent do Stripe (opcional, usado apenas se pagamento via Stripe)",
+    )
+
+    stripe_client_secret = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Client Secret do PaymentIntent do Stripe (opcional, usado apenas se pagamento via Stripe)",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -285,6 +299,26 @@ class Order(models.Model):
         if self.status == "paid":
             self.status = "delivered"
         self.save()
+
+    def cancel(self, reason: str = "Pagamento não realizado em 5 minutos"):
+        """
+        Cancela o pedido e reverte o uso do cupom se aplicável.
+
+        Args:
+            reason: Motivo do cancelamento (para logs)
+        """
+        if self.status in ("paid", "delivered", "cancelled"):
+            # Não cancela pedidos já pagos, entregues ou já cancelados
+            return False
+
+        # Reverte o uso do cupom se houver
+        if self.coupon:
+            self.coupon.uses_count = max(0, self.coupon.uses_count - 1)
+            self.coupon.save(update_fields=["uses_count"])
+
+        self.status = "cancelled"
+        self.save(update_fields=["status"])
+        return True
 
 
 class OrderItem(models.Model):
