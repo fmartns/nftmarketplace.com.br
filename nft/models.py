@@ -73,6 +73,8 @@ class NFTItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        verbose_name = "NFT Item"
+        verbose_name_plural = "NFT Items"
         indexes = [
             models.Index(fields=["source"]),
             models.Index(fields=["rarity"]),

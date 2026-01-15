@@ -13,11 +13,7 @@ import io
 import os
 from django.conf import settings
 
-from .models import NFTItem, PricingConfig, NFTItemAccess
-from nft.models import NftCollection
-
-# Import admin for collections to register it
-from .admin.collections import NftCollectionAdmin  # noqa: F401
+from ..models import NFTItem, PricingConfig, NFTItemAccess
 
 
 @admin.register(NFTItem)
@@ -196,6 +192,8 @@ class NFTItemAdmin(admin.ModelAdmin):
                                 ).hexdigest()[:40]
                                 placeholder_address = f"0x{hash_obj}"
 
+                                from ..models import NftCollection
+
                                 collection, _ = NftCollection.objects.get_or_create(
                                     name=collection_name,
                                     defaults={
@@ -270,6 +268,8 @@ class NFTItemAdmin(admin.ModelAdmin):
                             # ForeignKey: collection por id (apenas para formato Django)
                             if fields.get("collection"):
                                 try:
+                                    from ..models import NftCollection
+
                                     defaults["collection"] = NftCollection.objects.get(
                                         pk=fields.get("collection")
                                     )
@@ -278,7 +278,9 @@ class NFTItemAdmin(admin.ModelAdmin):
                                         f"Coleção com id={fields.get('collection')} não existe"
                                     )
 
-                        product_code = fields.get("product_code")
+                        product_code = fields.get("product_code") or defaults.get(
+                            "product_code"
+                        )
 
                         if update_existing:
                             if product_code:
@@ -320,6 +322,9 @@ class NFTItemAdmin(admin.ModelAdmin):
                                 created += 1
                     except Exception:
                         errors += 1
+                        import traceback
+
+                        traceback.print_exc()
 
             _import()
 
@@ -565,53 +570,50 @@ class NFTItemAdmin(admin.ModelAdmin):
                 price_parts = rounded_price.split()
                 if len(price_parts) >= 2:
                     currency = price_parts[0]  # "R$"
-                    price_value = price_parts[1]  # "125.00"
+                    amount = price_parts[1]  # "125.00"
 
-                    # Separar valor e centavos
-                    if "." in price_value:
-                        main_price, cents = price_value.split(".")
+                    # Dividir o valor em número e decimais
+                    if "." in amount:
+                        number, decimals = amount.split(".")
                     else:
-                        main_price = price_value
-                        cents = "00"
+                        number = amount
+                        decimals = "00"
 
-                    # Layout horizontal: R$ (esquerda) | PREÇO (centro) | ,00 (direita voando)
-                    # Calcular larguras dos textos
-                    currency_bbox = draw.textbbox((0, 0), currency, font=font_small)
-                    currency_width = currency_bbox[2] - currency_bbox[0]
+                    # Calcular posições do texto
+                    text_x = rect_x + 8
+                    text_y = rect_y + (rect_height - font_large_size) // 2
 
-                    price_bbox = draw.textbbox((0, 0), main_price, font=font_large)
-                    price_width = price_bbox[2] - price_bbox[0]
-
-                    cents_text = f",{cents}"
-                    cents_bbox = draw.textbbox((0, 0), cents_text, font=font_small)
-                    cents_width = cents_bbox[2] - cents_bbox[0]
-
-                    # Calcular largura total e posição inicial
-                    total_width = (
-                        currency_width + price_width + cents_width + 15
-                    )  # 15px de espaçamento total
-                    start_x = rect_x + (rect_width - total_width) // 2
-
-                    # Posições horizontais
-                    currency_x = start_x  # "R$" à esquerda
-                    price_x = currency_x + currency_width + 5  # Preço no centro
-                    cents_x = price_x + price_width + 5  # ",00" à direita
-
-                    # Posição vertical centralizada para todos
-                    center_y = rect_y + (rect_height - font_large_size) // 2
-
-                    # Desenhar textos horizontalmente
+                    # Desenhar "R$" pequeno
                     draw.text(
-                        (currency_x, center_y),
+                        (text_x, text_y - 2),
                         currency,
-                        fill="#0d2539",
+                        fill="white",
                         font=font_small,
                     )
+
+                    # Desenhar número grande
+                    number_width = draw.textlength(number, font=font_large)
                     draw.text(
-                        (price_x, center_y), main_price, fill="#0d2539", font=font_large
+                        (text_x + 25, text_y),
+                        number,
+                        fill="white",
+                        font=font_large,
                     )
+
+                    # Desenhar ",00" pequeno
                     draw.text(
-                        (cents_x, center_y), cents_text, fill="#0d2539", font=font_small
+                        (text_x + 25 + number_width + 2, text_y + 8),
+                        f",{decimals}",
+                        fill="white",
+                        font=font_small,
+                    )
+                else:
+                    # Fallback: desenhar preço completo
+                    draw.text(
+                        (rect_x + 8, rect_y + 8),
+                        rounded_price,
+                        fill="white",
+                        font=font_large,
                     )
 
             except Exception as e:
@@ -620,7 +622,7 @@ class NFTItemAdmin(admin.ModelAdmin):
         except Exception as e:
             print(f"Erro ao adicionar retângulo de preço: {e}")
 
-    def _draw_rounded_rectangle(self, draw, xy, fill=None, radius=0):
+    def _draw_rounded_rectangle(self, draw, xy, fill, radius):
         """Desenha um retângulo com bordas arredondadas"""
         x1, y1, x2, y2 = xy
 
@@ -628,165 +630,31 @@ class NFTItemAdmin(admin.ModelAdmin):
         draw.rectangle([x1 + radius, y1, x2 - radius, y2], fill=fill)
         draw.rectangle([x1, y1 + radius, x2, y2 - radius], fill=fill)
 
-        # Desenhar cantos arredondados
-        draw.pieslice([x1, y1, x1 + 2 * radius, y1 + 2 * radius], 180, 270, fill=fill)
-        draw.pieslice([x2 - 2 * radius, y1, x2, y1 + 2 * radius], 270, 360, fill=fill)
-        draw.pieslice([x1, y2 - 2 * radius, x1 + 2 * radius, y2], 90, 180, fill=fill)
-        draw.pieslice([x2 - 2 * radius, y2 - 2 * radius, x2, y2], 0, 90, fill=fill)
-
-    def _create_basic_template(self):
-        """Cria um template básico baseado na imagem de referência"""
-        # Dimensões baseadas na imagem de referência (800x1200)
-        width, height = 800, 1200
-        template = Image.new("RGB", (width, height), color="#0a0a0a")
-        draw = ImageDraw.Draw(template)
-
-        # Cores baseadas na imagem de referência
-        green_color = "#19ff00"  # Verde do primeiro quadrado
-        purple_color = "#430064"  # Roxo do segundo quadrado
-        red_color = "#EA0804"  # Vermelho do terceiro quadrado
-        white_color = "#ffffff"  # Branco para textos
-        cyan_color = "#00ffff"  # Ciano para elementos decorativos
-
-        # Desenhar elementos decorativos (circuitos)
-        self._draw_circuit_pattern(draw, width, height, cyan_color)
-
-        # Adicionar título
-        try:
-            title_font = ImageFont.truetype("arial.ttf", 36)
-            subtitle_font = ImageFont.truetype("arial.ttf", 18)
-        except (OSError, IOError):
-            title_font = ImageFont.load_default()
-            subtitle_font = ImageFont.load_default()
-
-        # Logo BEA SOUSA VENDAS no canto superior esquerdo
-        title_text = "BEA SOUSA"
-        draw.textbbox((0, 0), title_text, font=title_font)
-        draw.text((50, 50), title_text, fill=white_color, font=title_font)
-
-        # Subtítulo VENDAS
-        vendas_text = "VENDAS"
-        draw.textbbox((0, 0), vendas_text, font=subtitle_font)
-        draw.text((50, 100), vendas_text, fill=white_color, font=subtitle_font)
-
-        # Texto centralizado no topo
-        subtitle_text = "+6 ANOS NAS VENDAS ADM DOS GRUPOS +1500 REFS"
-        subtitle_bbox = draw.textbbox((0, 0), subtitle_text, font=subtitle_font)
-        subtitle_width = subtitle_bbox[2] - subtitle_bbox[0]
-        subtitle_x = (width - subtitle_width) // 2
-        draw.text((subtitle_x, 50), subtitle_text, fill=cyan_color, font=subtitle_font)
-
-        # Logo NFT central (hexágono brilhante)
-        nft_logo_size = 100
-        nft_logo_x = (width - nft_logo_size) // 2
-        nft_logo_y = 150
-
-        # Desenhar hexágono brilhante para o logo NFT
-        hexagon_points = [
-            (nft_logo_x + nft_logo_size // 2, nft_logo_y),
-            (nft_logo_x + nft_logo_size, nft_logo_y + nft_logo_size // 3),
-            (nft_logo_x + nft_logo_size, nft_logo_y + 2 * nft_logo_size // 3),
-            (nft_logo_x + nft_logo_size // 2, nft_logo_y + nft_logo_size),
-            (nft_logo_x, nft_logo_y + 2 * nft_logo_size // 3),
-            (nft_logo_x, nft_logo_y + nft_logo_size // 3),
-        ]
-        draw.polygon(hexagon_points, fill=cyan_color, outline=white_color, width=3)
-
-        # Texto NFT dentro do hexágono
-        nft_text = "NFT"
-        nft_text_bbox = draw.textbbox((0, 0), nft_text, font=title_font)
-        nft_text_width = nft_text_bbox[2] - nft_text_bbox[0]
-        nft_text_height = nft_text_bbox[3] - nft_text_bbox[1]
-        nft_text_x = nft_logo_x + (nft_logo_size - nft_text_width) // 2
-        nft_text_y = nft_logo_y + (nft_logo_size - nft_text_height) // 2
-        draw.text((nft_text_x, nft_text_y), nft_text, fill=white_color, font=title_font)
-
-        # Texto promocional brilhante
-        promo_text = "VALORES PARCELADO EM 3X SEM JUROS OU À VISTA COM 10% DE DESCONTO"
-        promo_bbox = draw.textbbox((0, 0), promo_text, font=subtitle_font)
-        promo_width = promo_bbox[2] - promo_bbox[0]
-        promo_x = (width - promo_width) // 2
-        draw.text((promo_x, 280), promo_text, fill=white_color, font=subtitle_font)
-
-        # Posições dos quadrados coloridos baseadas na imagem de referência
-        square_width = 290
-        square_height = 290
-        square_x = 255  # Posição X dos quadrados
-        square_spacing = 20  # Espaçamento entre quadrados
-
-        squares = [
-            # Quadrado verde (primeiro NFT)
-            (square_x, 295, square_x + square_width, 295 + square_height),
-            # Quadrado roxo (segundo NFT)
-            (
-                square_x,
-                295 + square_height + square_spacing,
-                square_x + square_width,
-                295 + square_height + square_spacing + square_height,
-            ),
-            # Quadrado vermelho (terceiro NFT)
-            (
-                square_x,
-                295 + 2 * (square_height + square_spacing),
-                square_x + square_width,
-                295 + 2 * (square_height + square_spacing) + square_height,
-            ),
-        ]
-
-        colors = [green_color, purple_color, red_color]
-
-        # Desenhar os quadrados coloridos
-        for i, square in enumerate(squares):
-            draw.rectangle(square, fill=colors[i], outline=white_color, width=2)
-
-        # Adicionar hexágonos NFT desbotados no fundo
-        self._draw_background_nft_hexagons(draw, width, height, cyan_color)
-
-        return template
+        # Desenhar círculos nos cantos
+        draw.ellipse([x1, y1, x1 + radius * 2, y1 + radius * 2], fill=fill)
+        draw.ellipse([x2 - radius * 2, y1, x2, y1 + radius * 2], fill=fill)
+        draw.ellipse([x1, y2 - radius * 2, x1 + radius * 2, y2], fill=fill)
+        draw.ellipse([x2 - radius * 2, y2 - radius * 2, x2, y2], fill=fill)
 
     def _draw_background_nft_hexagons(self, draw, width, height, color):
-        """Desenha hexágonos NFT desbotados no fundo"""
-        # Hexágono no canto superior esquerdo (desbotado)
-        hex1_size = 60
-        hex1_x = 50
-        hex1_y = 200
+        """Desenha hexágonos decorativos no fundo"""
+        import math
 
-        hex1_points = [
-            (hex1_x + hex1_size // 2, hex1_y),
-            (hex1_x + hex1_size, hex1_y + hex1_size // 3),
-            (hex1_x + hex1_size, hex1_y + 2 * hex1_size // 3),
-            (hex1_x + hex1_size // 2, hex1_y + hex1_size),
-            (hex1_x, hex1_y + 2 * hex1_size // 3),
-            (hex1_x, hex1_y + hex1_size // 3),
-        ]
-        draw.polygon(hex1_points, outline=color, width=1)
+        hex_size = 30
+        spacing = 50
 
-        # Hexágono no canto inferior esquerdo (desbotado)
-        hex2_size = 80
-        hex2_x = 50
-        hex2_y = height - 200
+        for y in range(0, height, spacing):
+            for x in range(0, width, spacing):
+                # Calcular pontos do hexágono
+                points = []
+                for i in range(6):
+                    angle = math.pi / 3 * i
+                    px = x + hex_size * math.cos(angle)
+                    py = y + hex_size * math.sin(angle)
+                    points.append((px, py))
 
-        hex2_points = [
-            (hex2_x + hex2_size // 2, hex2_y),
-            (hex2_x + hex2_size, hex2_y + hex2_size // 3),
-            (hex2_x + hex2_size, hex2_y + 2 * hex2_size // 3),
-            (hex2_x + hex2_size // 2, hex2_y + hex2_size),
-            (hex2_x, hex2_y + 2 * hex2_size // 3),
-            (hex2_x, hex2_y + hex2_size // 3),
-        ]
-        draw.polygon(hex2_points, outline=color, width=1)
-
-        # Linha de circuito do hexágono inferior
-        draw.line(
-            [
-                hex2_x + hex2_size // 2,
-                hex2_y + hex2_size,
-                hex2_x + hex2_size // 2,
-                hex2_y + hex2_size + 100,
-            ],
-            fill=color,
-            width=2,
-        )
+                # Desenhar hexágono
+                draw.polygon(points, outline=color, width=2)
 
     def _draw_circuit_pattern(self, draw, width, height, color):
         """Desenha um padrão de circuito decorativo"""
