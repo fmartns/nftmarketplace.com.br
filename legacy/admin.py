@@ -7,40 +7,49 @@ from .services import LegacyPriceService
 
 class SlugInputNoValidation(forms.TextInput):
     """Widget customizado que remove validação HTML5 do slug"""
+
     def __init__(self, attrs=None):
         if attrs is None:
             attrs = {}
         # Remover qualquer validação HTML5 - não definir pattern
-        attrs.pop('pattern', None)
-        attrs.pop('data-pattern', None)
+        attrs.pop("pattern", None)
+        attrs.pop("data-pattern", None)
         super().__init__(attrs)
-    
+
     def render(self, name, value, attrs=None, renderer=None):
         """Renderizar sem atributos de validação"""
         if attrs is None:
             attrs = {}
         # Garantir que não há pattern
-        attrs.pop('pattern', None)
-        attrs.pop('data-pattern', None)
+        attrs.pop("pattern", None)
+        attrs.pop("data-pattern", None)
         return super().render(name, value, attrs, renderer)
 
 
 class ItemCreateForm(forms.ModelForm):
     """Formulário simplificado para criação - apenas slug"""
-    
+
     class Meta:
         model = Item
         # Não incluir slug aqui - será adicionado manualmente como CharField
-        fields = ["name", "description", "image_url", "last_price", "average_price", "available_offers"]
+        fields = [
+            "name",
+            "description",
+            "image_url",
+            "last_price",
+            "average_price",
+            "available_offers",
+        ]
         exclude = []
-    
+
     def __init__(self, *args, **kwargs):
         # Chamar super().__init__() primeiro
         super().__init__(*args, **kwargs)
-        
+
         # Adicionar campo slug manualmente como CharField (não SlugField)
         # Isso garante que nunca seja criado como SlugField
         from django import forms as django_forms
+
         slug_field = django_forms.CharField(
             max_length=255,
             label="ID/Slug do Item",
@@ -51,13 +60,15 @@ class ItemCreateForm(forms.ModelForm):
         # Usar widget customizado que remove validação HTML5
         slug_field.widget = SlugInputNoValidation()
         # Adicionar o campo slug ao formulário (não substituir, pois não existe ainda)
-        self.fields['slug'] = slug_field
-        
+        self.fields["slug"] = slug_field
+
         # Tornar todos os campos opcionais na criação (exceto slug)
         for field_name, field in self.fields.items():
             if field_name != "slug":
                 field.required = False
-                field.widget = forms.HiddenInput()  # Esconder campos que serão preenchidos automaticamente
+                field.widget = (
+                    forms.HiddenInput()
+                )  # Esconder campos que serão preenchidos automaticamente
                 # Definir valores temporários para campos obrigatórios (serão substituídos no save_model)
                 if field_name == "name":
                     self.fields[field_name].initial = "Temporary - will be replaced"
@@ -67,7 +78,7 @@ class ItemCreateForm(forms.ModelForm):
                     self.fields[field_name].initial = 0
                 elif field_name == "available_offers":
                     self.fields[field_name].initial = 0
-    
+
     def clean_slug(self):
         """Validação customizada do slug - aceita asteriscos e outros caracteres"""
         slug = self.cleaned_data.get("slug")
@@ -76,12 +87,13 @@ class ItemCreateForm(forms.ModelForm):
         # Aceitar qualquer caractere (incluindo asteriscos)
         # A validação do modelo será feita no save_model
         return slug
-    
+
     def clean(self):
         """Preencher valores temporários para campos obrigatórios se não fornecidos"""
         cleaned_data = super().clean()
         # Preencher valores temporários para campos obrigatórios que não foram fornecidos
         from decimal import Decimal
+
         if not cleaned_data.get("name"):
             cleaned_data["name"] = "Temporary - will be replaced"
         if cleaned_data.get("last_price") is None:
@@ -91,7 +103,7 @@ class ItemCreateForm(forms.ModelForm):
         if cleaned_data.get("available_offers") is None:
             cleaned_data["available_offers"] = 0
         return cleaned_data
-    
+
     def save(self, commit=True):
         """Salvar sem commit - os dados serão preenchidos no save_model do admin"""
         # Criar instância com valores temporários para passar validação
@@ -101,6 +113,7 @@ class ItemCreateForm(forms.ModelForm):
 
 class ItemChangeForm(forms.ModelForm):
     """Formulário completo para edição"""
+
     class Meta:
         model = Item
         fields = "__all__"
@@ -153,25 +166,33 @@ class ItemAdmin(admin.ModelAdmin):
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         """Sobrescrever o campo slug para aceitar asteriscos na criação"""
         # Verificar se estamos na página de adicionar (não editar)
-        if db_field.name == 'slug':
+        if db_field.name == "slug":
             try:
-                url_name = request.resolver_match.url_name if hasattr(request, 'resolver_match') else None
-                if url_name and 'add' in url_name:
+                url_name = (
+                    request.resolver_match.url_name
+                    if hasattr(request, "resolver_match")
+                    else None
+                )
+                if url_name and "add" in url_name:
                     # Na criação, criar CharField diretamente em vez de SlugField
                     # Remover todos os argumentos específicos do SlugField
-                    kwargs.pop('allow_unicode', None)
-                    kwargs.pop('form_class', None)
+                    kwargs.pop("allow_unicode", None)
+                    kwargs.pop("form_class", None)
                     # Criar CharField diretamente
                     return forms.CharField(
                         max_length=255,
                         required=not db_field.blank,
                         validators=[],
-                        **{k: v for k, v in kwargs.items() if k not in ['form_class', 'allow_unicode']}
+                        **{
+                            k: v
+                            for k, v in kwargs.items()
+                            if k not in ["form_class", "allow_unicode"]
+                        },
                     )
             except:
                 pass
         return super().formfield_for_dbfield(db_field, request, **kwargs)
-    
+
     def get_form(self, request, obj=None, **kwargs):
         """Usa formulário simplificado na criação, completo na edição"""
         if obj is None:
@@ -181,7 +202,7 @@ class ItemAdmin(admin.ModelAdmin):
             # Edição - todos os campos
             kwargs["form"] = ItemChangeForm
         return super().get_form(request, obj, **kwargs)
-    
+
     def get_fieldsets(self, request, obj=None):
         """Mostra apenas o slug na criação, todos os campos na edição"""
         if obj is None:
@@ -205,14 +226,14 @@ class ItemAdmin(admin.ModelAdmin):
             slug = form.cleaned_data.get("slug")
             if slug:
                 # Remover validadores do slug temporariamente para aceitar asteriscos
-                slug_field = obj._meta.get_field('slug')
+                slug_field = obj._meta.get_field("slug")
                 original_validators = slug_field.validators[:]  # Copiar lista
                 slug_field.validators = []
-                
+
                 try:
                     # Buscar dados da API externa
                     item_data = LegacyPriceService.get_item_data(slug)
-                    
+
                     # Preencher todos os campos com os dados da API
                     obj.name = item_data["name"]
                     obj.image_url = item_data["image_url"]
@@ -221,13 +242,13 @@ class ItemAdmin(admin.ModelAdmin):
                     obj.average_price = item_data["average_price"]
                     obj.available_offers = item_data["available_offers"]
                     obj.price_history = item_data.get("price_history", [])
-                    
+
                     # Definir o slug (pode conter asteriscos)
                     obj.slug = slug
-                    
+
                     # Salvar o objeto (validadores do slug já foram removidos acima)
                     obj.save()
-                    
+
                     self.message_user(
                         request,
                         f"Item '{obj.name}' criado com sucesso a partir da API externa.",

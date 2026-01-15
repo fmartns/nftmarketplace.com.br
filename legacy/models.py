@@ -4,8 +4,8 @@ from django.core.validators import RegexValidator
 
 # Validador customizado que aceita qualquer caractere (incluindo asteriscos)
 class FlexibleSlugValidator(RegexValidator):
-    regex = r'^.+$'  # Aceita qualquer caractere não vazio
-    message = 'O slug pode conter qualquer caractere.'
+    regex = r"^.+$"  # Aceita qualquer caractere não vazio
+    message = "O slug pode conter qualquer caractere."
 
 
 class Item(models.Model):
@@ -14,7 +14,7 @@ class Item(models.Model):
     description = models.TextField(blank=True)
     # Usar CharField em vez de SlugField para aceitar asteriscos e outros caracteres
     slug = models.CharField(
-        max_length=255, 
+        max_length=255,
         unique=True,
         validators=[FlexibleSlugValidator()],
         db_index=True,  # Manter índice para performance

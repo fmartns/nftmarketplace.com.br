@@ -45,7 +45,7 @@ class LegacyItemDetail(APIView):
                     "price_history": item_data["price_history"],
                 },
             )
-            
+
             # A imagem só é definida na criação, não na atualização
             if created:
                 item.image_url = item_data["image_url"]
@@ -101,7 +101,7 @@ class LegacyItemCreate(APIView):
                     "price_history": item_data["price_history"],
                 },
             )
-            
+
             # A imagem só é definida na criação, não na atualização
             if created:
                 item.image_url = item_data["image_url"]
