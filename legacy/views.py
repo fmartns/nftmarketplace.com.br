@@ -38,7 +38,6 @@ class LegacyItemDetail(APIView):
                 slug=item_data["slug"],
                 defaults={
                     "name": item_data["name"],
-                    "image_url": item_data["image_url"],
                     "description": item_data["description"],
                     "last_price": item_data["last_price"],
                     "average_price": item_data["average_price"],
@@ -46,6 +45,11 @@ class LegacyItemDetail(APIView):
                     "price_history": item_data["price_history"],
                 },
             )
+
+            # A imagem só é definida na criação, não na atualização
+            if created:
+                item.image_url = item_data["image_url"]
+                item.save(update_fields=["image_url"])
 
             # Serializar resposta com todos os dados do item
             response_serializer = LegacyItemDetailsSerializer(item)
@@ -90,7 +94,6 @@ class LegacyItemCreate(APIView):
                 slug=item_data["slug"],
                 defaults={
                     "name": item_data["name"],
-                    "image_url": item_data["image_url"],
                     "description": item_data["description"],
                     "last_price": item_data["last_price"],
                     "average_price": item_data["average_price"],
@@ -98,6 +101,11 @@ class LegacyItemCreate(APIView):
                     "price_history": item_data["price_history"],
                 },
             )
+
+            # A imagem só é definida na criação, não na atualização
+            if created:
+                item.image_url = item_data["image_url"]
+                item.save(update_fields=["image_url"])
 
             # Serializar resposta
             response_serializer = LegacyItemCreateSerializer(item)
