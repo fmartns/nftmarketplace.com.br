@@ -189,7 +189,7 @@ class ItemAdmin(admin.ModelAdmin):
                             if k not in ["form_class", "allow_unicode"]
                         },
                     )
-            except:
+            except Exception:
                 pass
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 

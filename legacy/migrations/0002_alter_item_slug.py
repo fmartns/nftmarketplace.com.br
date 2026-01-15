@@ -7,13 +7,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('legacy', '0001_initial'),
+        ("legacy", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='item',
-            name='slug',
-            field=models.CharField(db_index=True, max_length=255, unique=True, validators=[legacy.models.FlexibleSlugValidator()]),
+            model_name="item",
+            name="slug",
+            field=models.CharField(
+                db_index=True,
+                max_length=255,
+                unique=True,
+                validators=[legacy.models.FlexibleSlugValidator()],
+            ),
         ),
     ]
