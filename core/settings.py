@@ -319,6 +319,14 @@ CELERY_BEAT_SCHEDULE = {
             "expires": 60 * 60 * 24,  # Expira em 24 horas se não executar
         },
     },
+    # Rotina de segurança: verifica pedidos não pagos a cada 30 minutos
+    "cancel-unpaid-orders-security": {
+        "task": "orders.tasks.cancel_unpaid_orders_security_check",
+        "schedule": 60.0 * 30.0,  # Executa a cada 30 minutos
+        "options": {
+            "expires": 60 * 60,  # Expira em 1 hora se não executar
+        },
+    },
 }
 
 # Auth User Model

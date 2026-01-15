@@ -47,7 +47,70 @@ class OrderListCreateView(generics.ListCreateAPIView):
         coupon_code = validated_data.get("coupon_code")
         notes = validated_data.get("notes", "")
 
-        # Calcula subtotal
+        # Segunda validação: recalcula preços dos itens para garantir que estão atualizados
+        import logging
+
+        logger = logging.getLogger(__name__)
+
+        for item_data in items_data:
+            original_price = item_data["unit_price"]
+
+            # Recalcula o preço atual do item
+            if item_data["content_type"].model == "nftitem":
+                # Para NFTs, busca o preço atualizado da API
+                try:
+                    from nft.models import NFTItem
+                    from nft.services import fetch_min_listing_prices
+
+                    nft_item = NFTItem.objects.get(id=item_data["object_id"])
+                    if nft_item.product_code:
+                        # Busca o preço mínimo atualizado
+                        current_prices = fetch_min_listing_prices(nft_item.product_code)
+                        if current_prices:
+                            _, _, current_price_brl = current_prices
+                            # Atualiza o preço no item_data com o preço recalculado
+                            item_data["unit_price"] = current_price_brl
+
+                            # Log se houver diferença significativa (mais de 1%)
+                            price_diff = abs(float(current_price_brl - original_price))
+                            if price_diff > float(original_price * Decimal("0.01")):
+                                logger.warning(
+                                    f"Preço recalculado para NFT {nft_item.product_code}: "
+                                    f"Original: R$ {original_price}, Atualizado: R$ {current_price_brl}, "
+                                    f"Diferença: R$ {price_diff:.2f}"
+                                )
+                        else:
+                            # Se não conseguir buscar preço atualizado, mantém o do banco
+                            logger.warning(
+                                f"Não foi possível recalcular preço para NFT {nft_item.product_code}, "
+                                f"usando preço do banco: R$ {original_price}"
+                            )
+                except Exception as e:
+                    logger.error(
+                        f"Erro ao recalcular preço do NFT {item_data['object_id']}: {e}",
+                        exc_info=True,
+                    )
+                    # Em caso de erro, mantém o preço original
+            elif item_data["content_type"].model == "item":
+                # Para itens legacy, apenas verifica se o preço no banco está atualizado
+                try:
+                    from legacy.models import Item
+
+                    legacy_item = Item.objects.get(id=item_data["object_id"])
+                    current_price = legacy_item.last_price
+                    if current_price != original_price:
+                        item_data["unit_price"] = current_price
+                        logger.warning(
+                            f"Preço atualizado para item legacy {legacy_item.id}: "
+                            f"Original: R$ {original_price}, Atualizado: R$ {current_price}"
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"Erro ao verificar preço do item legacy {item_data['object_id']}: {e}",
+                        exc_info=True,
+                    )
+
+        # Calcula subtotal com os preços recalculados
         subtotal = Decimal("0.00")
         for item_data in items_data:
             unit_price = item_data["unit_price"]
@@ -95,6 +158,14 @@ class OrderListCreateView(generics.ListCreateAPIView):
                 quantity=item_data["quantity"],
                 unit_price=item_data["unit_price"],
             )
+
+        # Agenda task para verificar e cancelar pedido se não for pago em 5 minutos
+        from ..tasks import check_and_cancel_order
+
+        check_and_cancel_order.apply_async(
+            args=[order.id],
+            countdown=60 * 5,  # Executa após 5 minutos (300 segundos)
+        )
 
         # Pagamento será processado via AbacatePay (criar billing separadamente)
 
