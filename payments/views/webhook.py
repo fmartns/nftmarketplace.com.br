@@ -15,18 +15,15 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.conf import settings
+import settings
 
 from ..models import AbacatePayBilling, AbacatePayPayment
 
 logger = logging.getLogger(__name__)
 
 # Chave pública HMAC da AbacatePay (conforme documentação)
-# Pode ser sobrescrita via settings.ABACATEPAY_PUBLIC_KEY
-ABACATEPAY_PUBLIC_KEY = getattr(
-    settings,
-    "ABACATEPAY_PUBLIC_KEY",
-    "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9",
-)
+# Carregada do settings (que vem de .env/secrets)
+ABACATEPAY_PUBLIC_KEY = getattr(settings, "ABACATEPAY_PUBLIC_KEY", None) or ""
 
 ABACATEPAY_WEBHOOK_SECRET = getattr(settings, "ABACATEPAY_WEBHOOK_SECRET", "")
 

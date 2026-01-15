@@ -23,7 +23,7 @@ DEFAULT_MARKUP_MULTIPLIER = Decimal("1.30")
 _RATES_CACHE: Optional[Tuple[Decimal, Decimal, float]] = (
     None  # (eth_usd, usd_brl, expires_at_epoch)
 )
-_RATES_TTL_SECONDS = 180.0  # 3 minutes
+_RATES_TTL_SECONDS = 600.0  # 10 minutes - reduz chamadas à API e evita rate limiting
 
 
 def _get_markup_multiplier_for(product_code: Optional[str]) -> Decimal:
@@ -101,6 +101,19 @@ def _get_json_with_retries(
                 time.sleep(sleep_s)
                 attempt += 1
                 continue
+            # HTTP 400 (Bad Request) - pode ser parâmetros inválidos, não retry
+            if resp.status_code == 400:
+                logger.warning(
+                    "HTTP 400 from %s; not retrying (bad request - check parameters)",
+                    url,
+                )
+                # Log response body for debugging
+                try:
+                    error_body = resp.text[:500]  # First 500 chars
+                    logger.debug("HTTP 400 response body: %s", error_body)
+                except Exception:
+                    pass
+                return None
             # Non-retriable status
             logger.warning("HTTP %s from %s; not retrying", resp.status_code, url)
             return None
