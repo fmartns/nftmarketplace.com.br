@@ -59,5 +59,9 @@
       port,
       host: true,
       open: false,
+      watch: {
+        usePolling: true,
+        interval: 1000,
+      },
     },
   });
