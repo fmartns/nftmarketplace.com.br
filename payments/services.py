@@ -46,6 +46,8 @@ class AbacatePayService:
         # Obtém configurações do settings
         api_base_url = getattr(settings, "ABACATEPAY_API_BASE_URL", None)
         api_key = getattr(settings, "ABACATEPAY_API_KEY", "")
+        # Timeout padrão de 30 segundos (pode ser configurado via settings)
+        timeout = getattr(settings, "ABACATEPAY_API_TIMEOUT", 30)
 
         # Verifica se a API base URL está configurada
         if not api_base_url:
@@ -72,35 +74,81 @@ class AbacatePayService:
 
         try:
             if method.upper() == "GET":
-                response = requests.get(url, headers=headers, params=data)
+                response = requests.get(
+                    url, headers=headers, params=data, timeout=timeout
+                )
             elif method.upper() == "POST":
-                response = requests.post(url, headers=headers, json=data)
+                response = requests.post(
+                    url, headers=headers, json=data, timeout=timeout
+                )
             else:
                 raise ValueError(f"Método HTTP não suportado: {method}")
 
             response.raise_for_status()
             return response.json()
 
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Timeout ao fazer requisição para AbacatePay: {e}")
+            logger.error(f"URL tentada: {url}")
+            return {
+                "data": None,
+                "error": {
+                    "message": "O serviço de pagamento está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
+                    "statusCode": 504,
+                    "type": "timeout",
+                },
+            }
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Erro de conexão com AbacatePay: {e}")
+            logger.error(f"URL tentada: {url}")
+            return {
+                "data": None,
+                "error": {
+                    "message": "Não foi possível conectar ao serviço de pagamento. Por favor, tente novamente em alguns instantes.",
+                    "statusCode": 503,
+                    "type": "connection_error",
+                },
+            }
         except requests.exceptions.RequestException as e:
             logger.error(f"Erro ao fazer requisição para AbacatePay: {e}")
             logger.error(f"URL tentada: {url}")
             logger.error(f"Headers: {headers}")
             if hasattr(e, "response") and e.response is not None:
+                status_code = e.response.status_code
+                # Detecta erros de timeout do Cloudflare (522, 524)
+                if status_code in (522, 524):
+                    logger.error(
+                        f"Status code: {status_code} - API AbacatePay está fora do ar"
+                    )
+                    return {
+                        "data": None,
+                        "error": {
+                            "message": "O serviço de pagamento está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
+                            "statusCode": status_code,
+                            "type": "service_unavailable",
+                        },
+                    }
                 try:
                     error_data = e.response.json()
                     logger.error(f"Resposta de erro da API: {error_data}")
                     return {"data": None, "error": error_data}
                 except Exception:
-                    logger.error(f"Status code: {e.response.status_code}")
+                    logger.error(f"Status code: {status_code}")
                     logger.error(f"Response text: {e.response.text[:500]}")
                     return {
                         "data": None,
                         "error": {
                             "message": str(e),
-                            "status_code": e.response.status_code,
+                            "status_code": status_code,
                         },
                     }
-            return {"data": None, "error": {"message": str(e)}}
+            return {
+                "data": None,
+                "error": {
+                    "message": "Erro ao processar requisição. Por favor, tente novamente.",
+                    "statusCode": 500,
+                },
+            }
 
     @staticmethod
     def create_customer(

@@ -230,6 +230,27 @@ class BillingCreateView(APIView):
                     status=status.HTTP_503_SERVICE_UNAVAILABLE,
                 )
 
+            # Trata erros de timeout e serviço indisponível (522, 524, 503, 504)
+            if isinstance(error_details, dict):
+                status_code = error_details.get("statusCode")
+                error_type = error_details.get("type")
+
+                if status_code in (522, 524, 503, 504) or error_type in (
+                    "timeout",
+                    "connection_error",
+                    "service_unavailable",
+                ):
+                    return Response(
+                        {
+                            "error": "Serviço de pagamento indisponível",
+                            "message": error_details.get(
+                                "message",
+                                "O serviço de pagamento está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
+                            ),
+                        },
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+
             if (
                 isinstance(error_details, dict)
                 and error_details.get("statusCode") == 404
@@ -249,9 +270,15 @@ class BillingCreateView(APIView):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
+            # Retorna mensagem amigável do erro se disponível
+            error_message = "Erro ao criar cobrança na AbacatePay"
+            if isinstance(error_details, dict) and error_details.get("message"):
+                error_message = error_details.get("message")
+
             return Response(
                 {
                     "error": "Erro ao criar cobrança na AbacatePay",
+                    "message": error_message,
                     "details": error_details,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,

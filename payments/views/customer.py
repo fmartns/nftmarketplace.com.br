@@ -65,10 +65,39 @@ class CustomerCreateView(APIView):
         )
 
         if customer_response.get("error"):
+            error_details = customer_response["error"]
+
+            # Trata erros de timeout e serviço indisponível (522, 524, 503, 504)
+            if isinstance(error_details, dict):
+                status_code = error_details.get("statusCode")
+                error_type = error_details.get("type")
+
+                if status_code in (522, 524, 503, 504) or error_type in (
+                    "timeout",
+                    "connection_error",
+                    "service_unavailable",
+                ):
+                    return Response(
+                        {
+                            "error": "Serviço de pagamento indisponível",
+                            "message": error_details.get(
+                                "message",
+                                "O serviço de pagamento está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
+                            ),
+                        },
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+
+            # Retorna mensagem amigável do erro se disponível
+            error_message = "Erro ao criar cliente na AbacatePay"
+            if isinstance(error_details, dict) and error_details.get("message"):
+                error_message = error_details.get("message")
+
             return Response(
                 {
                     "error": "Erro ao criar cliente na AbacatePay",
-                    "details": customer_response["error"],
+                    "message": error_message,
+                    "details": error_details,
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
