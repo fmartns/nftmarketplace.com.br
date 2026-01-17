@@ -202,6 +202,20 @@ class BillingCreateView(APIView):
 
         completion_url = f"{origin}/payment/success?order_id={encoded_order_id}"
 
+        # Validação: Verifica se o valor total (com taxa) será pelo menos R$ 1,00
+        from decimal import Decimal
+        from ..services import ABACATEPAY_FEE
+        MIN_ORDER_TOTAL = Decimal("0.20")  # R$ 0,20 + R$ 0,80 (taxa) = R$ 1,00 mínimo
+        
+        if order.total < MIN_ORDER_TOTAL:
+            return Response(
+                {
+                    "error": "Valor mínimo insuficiente",
+                    "message": f"O valor mínimo para pagamento é R$ 1,00 (incluindo taxa de R$ 0,80). Valor do pedido: R$ {order.total:.2f}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         billing_response = AbacatePayService.create_billing(
             customer_id=customer.external_id or None,
             amount=order.total,
