@@ -386,7 +386,7 @@ class ItemAdmin(admin.ModelAdmin):
 
             @transaction.atomic
             def _import():
-                nonlocal created, updated, errors, error_messages
+                nonlocal created, updated, errors
 
                 for item_data in items_to_import:
                     try:
