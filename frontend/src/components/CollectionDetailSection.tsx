@@ -252,6 +252,7 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
       const target = `/${slug}/${productCode}`;
       if (window.location.pathname !== target) {
         window.history.pushState({}, '', target);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
       return;
@@ -625,7 +626,7 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
               {filteredItems.length > 0 ? (
                 <div className={`grid gap-6 ${
                   viewMode === 'grid' 
-                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                    ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6' 
                     : 'grid-cols-1'
                 }`}>
                   {filteredItems.map((item: any) => (

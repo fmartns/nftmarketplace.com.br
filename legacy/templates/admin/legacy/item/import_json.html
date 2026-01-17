@@ -1,0 +1,76 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <div class="content">
+    <h1>{% trans "Importar Itens Legacy via JSON" %}</h1>
+
+    <p class="help">
+      Importe itens legacy a partir de um arquivo JSON. Formatos aceitos:
+      <ul>
+        <li><strong>Formato legacy.json:</strong> {"success": true, "data": {"topSold": [...], "topVolume": [...]}}</li>
+        <li><strong>Lista direta de itens:</strong> [{"classname": "...", "name": "...", "current_price": ..., ...}]</li>
+        <li><strong>Objeto único:</strong> {"classname": "...", "name": "...", "current_price": ..., ...}</li>
+      </ul>
+      <p><strong>Campos mapeados:</strong></p>
+      <ul>
+        <li><code>classname</code> → <code>slug</code> (obrigatório)</li>
+        <li><code>name</code> → <code>name</code></li>
+        <li><code>current_price</code> → <code>last_price</code></li>
+        <li><code>current_average</code> → <code>average_price</code></li>
+        <li><code>current_quantity</code> → <code>available_offers</code></li>
+        <li><code>image_url</code> → <code>image_url</code> (opcional)</li>
+        <li><code>description</code> → <code>description</code> (opcional)</li>
+        <li><code>price_history</code> → <code>price_history</code> (opcional)</li>
+      </ul>
+      <p><em>Campos adicionais no JSON serão ignorados.</em></p>
+    </p>
+
+    <form method="post" enctype="multipart/form-data" novalidate>
+      {% csrf_token %}
+      
+      <div class="form-row">
+        <label for="id_json_file"><strong>{% trans "Ou faça upload de um arquivo JSON" %}</strong></label>
+        <input type="file" name="json_file" id="id_json_file" accept=".json,application/json" style="width:100%; padding: 5px;">
+        <p class="help">Selecione um arquivo JSON para importar.</p>
+      </div>
+
+      <div class="form-row" style="margin-top: 20px;">
+        <label for="id_json_text"><strong>{% trans "Ou cole o JSON aqui" %}</strong></label>
+        <textarea name="json_text" id="id_json_text" rows="18" style="width:100%; font-family:monospace;"></textarea>
+        <p class="help">Cole o conteúdo JSON diretamente no campo acima.</p>
+      </div>
+
+      <div class="submit-row" style="margin-top: 20px;">
+        <button type="submit" class="default">{% trans "Importar" %}</button>
+        <a href="{% url 'admin:legacy_item_changelist' %}" class="button cancel-link">{% trans "Cancelar" %}</a>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    // Desabilitar um campo quando o outro for preenchido
+    document.addEventListener('DOMContentLoaded', function() {
+      const fileInput = document.getElementById('id_json_file');
+      const textInput = document.getElementById('id_json_text');
+      
+      fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+          textInput.disabled = true;
+          textInput.value = '';
+        } else {
+          textInput.disabled = false;
+        }
+      });
+      
+      textInput.addEventListener('input', function() {
+        if (this.value.trim().length > 0) {
+          fileInput.disabled = true;
+          fileInput.value = '';
+        } else {
+          fileInput.disabled = false;
+        }
+      });
+    });
+  </script>
+{% endblock %}

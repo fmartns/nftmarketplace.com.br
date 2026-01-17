@@ -31,11 +31,18 @@ export default function App() {
     };
   }, []);
 
+  // Scroll to top when path changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [path]);
+
   const navigate = (to: string) => {
     const target = to.startsWith('/') ? to : `/${to}`;
     if (window.location.pathname !== target) {
       window.history.pushState({}, '', target);
       setPath(target);
+      // Scroll to top immediately on navigation
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
