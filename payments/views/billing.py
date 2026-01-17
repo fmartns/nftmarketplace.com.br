@@ -290,12 +290,17 @@ class BillingCreateView(APIView):
             customer.external_id = billing_data["customerId"]
             customer.save()
 
+        # Calcula o valor total com a taxa do AbacatePay (R$ 0,80)
+        from ..services import ABACATEPAY_FEE
+
+        total_with_fee = order.total + ABACATEPAY_FEE
+
         billing = AbacatePayBilling.objects.create(
             order=order,
             customer=customer,
             billing_id=billing_data["id"],
             payment_url=billing_data.get("url", ""),
-            amount=order.total,
+            amount=total_with_fee,  # Salva o valor com a taxa
             status=billing_data.get("status", "PENDING"),
             methods=billing_data.get("methods", []),
             frequency=billing_data.get("frequency", "ONE_TIME"),
@@ -306,7 +311,7 @@ class BillingCreateView(APIView):
             billing=billing,
             order=order,
             payment_url=billing.payment_url,
-            amount=order.total,
+            amount=total_with_fee,  # Salva o valor com a taxa
             status=billing.status,
             raw_response=billing_data,
         )
