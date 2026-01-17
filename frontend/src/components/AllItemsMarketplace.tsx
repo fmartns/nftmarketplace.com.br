@@ -438,6 +438,7 @@ export function AllItemsMarketplace() {
                               id={`collection-${collection.slug}`}
                               checked={selectedCollections.includes(collection.slug)}
                               onCheckedChange={() => handleCollectionToggle(collection.slug)}
+                              className="mt-0.5"
                             />
                             <label
                               htmlFor={`collection-${collection.slug}`}
