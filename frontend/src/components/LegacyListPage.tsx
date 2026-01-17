@@ -95,6 +95,7 @@ export function LegacyListPage() {
     const to = `/legacy/${item.slug}`;
     if (window.location.pathname !== to) {
       window.history.pushState({}, '', to);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };

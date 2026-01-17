@@ -75,8 +75,23 @@ class CouponAdmin(admin.ModelAdmin):
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
     extra = 0
-    readonly_fields = ["content_type", "object_id", "unit_price", "total_price"]
-    fields = ["item", "quantity", "unit_price", "total_price"]
+    readonly_fields = [
+        "item_display",
+        "content_type",
+        "object_id",
+        "unit_price",
+        "total_price",
+    ]
+    fields = ["item_display", "quantity", "unit_price", "total_price"]
+    can_delete = False
+
+    def item_display(self, obj):
+        """Exibe o item de forma legível"""
+        if obj.item:
+            return str(obj.item)
+        return f"{obj.content_type} #{obj.object_id}"
+
+    item_display.short_description = "Item"
 
 
 @admin.register(Order)

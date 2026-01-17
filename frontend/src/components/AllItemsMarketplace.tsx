@@ -348,6 +348,7 @@ export function AllItemsMarketplace() {
       const to = `/${slug}/${code}`;
       if (window.location.pathname !== to) {
         window.history.pushState({}, '', to);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         window.dispatchEvent(new PopStateEvent('popstate'));
       }
     }

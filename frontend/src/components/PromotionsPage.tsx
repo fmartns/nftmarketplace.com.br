@@ -12,6 +12,7 @@ export function PromotionsPage() {
     const target = to.startsWith('/') ? to : `/${to}`;
     if (window.location.pathname !== target) {
       window.history.pushState({}, '', target);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
   };
