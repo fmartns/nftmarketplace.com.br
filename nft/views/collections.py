@@ -31,8 +31,10 @@ class CollectionListCreateAPIView(APIView):
     @collection_list_schema
     def get(self, request):
         """Lista todas as coleções NFT com suporte a busca."""
+        from django.db.models import Count
+
         q = request.query_params.get("q")
-        qs = NftCollection.objects.all()
+        qs = NftCollection.objects.annotate(items_count_calculated=Count("items"))
 
         if q:
             qs = qs.filter(
