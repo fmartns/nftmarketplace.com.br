@@ -313,11 +313,8 @@ class AbacatePayService:
         else:
             # Se products foi fornecido, adiciona a taxa como um item adicional
             # Verifica se a taxa já não foi adicionada (evita duplicação)
-            has_fee = any(
-                p.get("externalId") == "abacatepay_fee" 
-                for p in products
-            )
-            
+            has_fee = any(p.get("externalId") == "abacatepay_fee" for p in products)
+
             if not has_fee:
                 fee_product = {
                     "externalId": "abacatepay_fee",
@@ -327,13 +324,13 @@ class AbacatePayService:
                     "price": ABACATEPAY_FEE_CENTS,
                 }
                 products.append(fee_product)
-            
+
             # Calcula o total somando todos os produtos (incluindo a taxa)
             total_products_cents = sum(
                 p.get("price", 0) * p.get("quantity", 1) for p in products
             )
             amount_cents = total_products_cents
-            
+
             # Log para debug
             logger.debug(
                 f"Products fornecidos: {len(products)} produtos, "
