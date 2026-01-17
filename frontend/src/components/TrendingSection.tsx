@@ -44,6 +44,7 @@ export function TrendingSection() {
         const to = `/${item.collection_slug}/${item.product_code}`;
         if (window.location.pathname !== to) {
           window.history.pushState({}, '', to);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
           window.dispatchEvent(new PopStateEvent('popstate'));
         }
       }
@@ -102,6 +103,7 @@ export function TrendingSection() {
               const to = '/collections';
               if (window.location.pathname !== to) {
                 window.history.pushState({}, '', to);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }
             }}

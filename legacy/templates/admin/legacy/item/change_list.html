@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  <li>
+    <a href="{% url 'admin:legacy_item_import_json' %}" class="addlink" title="{% trans 'Import Legacy Items via JSON' %}">
+      {% trans 'Importar via JSON' %}
+    </a>
+  </li>
+{% endblock %}

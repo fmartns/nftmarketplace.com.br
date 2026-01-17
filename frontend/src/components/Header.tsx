@@ -90,6 +90,7 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
             setIsDropdownOpen(false);
             if (window.location.pathname === '/configuracoes' || window.location.pathname === '/pedidos') {
               window.history.pushState({}, '', '/');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
               window.dispatchEvent(new PopStateEvent('popstate'));
             }
           }
@@ -119,6 +120,7 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
     const target = to.startsWith('/') ? to : `/${to}`;
     if (window.location.pathname !== target) {
       window.history.pushState({}, '', target);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       window.dispatchEvent(new PopStateEvent('popstate'));
       // Also trigger a custom event for App.tsx to catch
       window.dispatchEvent(new CustomEvent('locationchange', { detail: { path: target } }));

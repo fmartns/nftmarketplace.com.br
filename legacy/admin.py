@@ -1,6 +1,11 @@
 from django.contrib import admin
 from django.contrib import messages
 from django import forms
+from django.shortcuts import render, redirect
+from django.urls import path
+from django.db import transaction
+from decimal import Decimal
+import json
 from .models import Item
 from .services import LegacyPriceService
 
@@ -133,6 +138,7 @@ class ItemAdmin(admin.ModelAdmin):
     list_filter = ["created_at", "updated_at"]
     search_fields = ["name", "slug", "description"]
     readonly_fields = ["created_at", "updated_at", "price_history"]
+    change_list_template = "admin/legacy/item/change_list.html"
 
     fieldsets = (
         (
@@ -274,6 +280,241 @@ class ItemAdmin(admin.ModelAdmin):
             super().save_model(request, obj, form, change)
 
     actions = ["create_from_slug", "refresh_from_api"]
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "import-json/",
+                self.admin_site.admin_view(self.import_json_view),
+                name="legacy_item_import_json",
+            ),
+        ]
+        return custom + urls
+
+    def import_json_view(self, request):
+        """View para importar itens legacy a partir de um arquivo JSON"""
+        context = {**self.admin_site.each_context(request)}
+        context.update(
+            {
+                "opts": self.model._meta,
+                "title": "Importar Itens Legacy via JSON",
+                "has_view_permission": self.has_view_permission(request),
+            }
+        )
+
+        if request.method == "POST":
+            # Aceita tanto upload de arquivo quanto cola de texto
+            json_data = None
+            if "json_file" in request.FILES:
+                file = request.FILES["json_file"]
+                try:
+                    json_data = json.loads(file.read().decode("utf-8"))
+                except json.JSONDecodeError as e:
+                    messages.error(request, f"Erro ao ler arquivo JSON: {e}")
+                    return render(
+                        request, "admin/legacy/item/import_json.html", context
+                    )
+            elif "json_text" in request.POST:
+                json_text = request.POST.get("json_text", "").strip()
+                if json_text:
+                    try:
+                        json_data = json.loads(json_text)
+                    except json.JSONDecodeError as e:
+                        messages.error(request, f"JSON inválido: {e}")
+                        return render(
+                            request, "admin/legacy/item/import_json.html", context
+                        )
+                else:
+                    messages.error(
+                        request,
+                        "Por favor, forneça um arquivo JSON ou cole o conteúdo JSON.",
+                    )
+                    return render(
+                        request, "admin/legacy/item/import_json.html", context
+                    )
+            else:
+                messages.error(
+                    request,
+                    "Por favor, forneça um arquivo JSON ou cole o conteúdo JSON.",
+                )
+                return render(request, "admin/legacy/item/import_json.html", context)
+
+            if not json_data:
+                messages.error(request, "Nenhum dado JSON foi fornecido.")
+                return render(request, "admin/legacy/item/import_json.html", context)
+
+            # Processar o JSON - aceita formato legacy.json
+            items_to_import = []
+
+            # Verificar se tem estrutura data.topSold ou data.topVolume
+            if isinstance(json_data, dict) and "data" in json_data:
+                data = json_data["data"]
+                # Combinar topSold e topVolume (removendo duplicatas por classname)
+                seen_classnames = set()
+                for item_list in [data.get("topSold", []), data.get("topVolume", [])]:
+                    if isinstance(item_list, list):
+                        for item in item_list:
+                            if isinstance(item, dict) and "classname" in item:
+                                classname = item.get("classname")
+                                if classname and classname not in seen_classnames:
+                                    items_to_import.append(item)
+                                    seen_classnames.add(classname)
+            elif isinstance(json_data, list):
+                # Se for uma lista direta de itens
+                items_to_import = json_data
+            elif isinstance(json_data, dict) and "classname" in json_data:
+                # Se for um único item
+                items_to_import = [json_data]
+            else:
+                messages.error(
+                    request,
+                    "Estrutura JSON não reconhecida. Esperado formato com 'data.topSold' e 'data.topVolume', ou lista de itens.",
+                )
+                return render(request, "admin/legacy/item/import_json.html", context)
+
+            if not items_to_import:
+                messages.warning(
+                    request, "Nenhum item encontrado no JSON para importar."
+                )
+                return render(request, "admin/legacy/item/import_json.html", context)
+
+            created = 0
+            updated = 0
+            errors = 0
+            error_messages = []
+
+            @transaction.atomic
+            def _import():
+                nonlocal created, updated, errors
+
+                for item_data in items_to_import:
+                    try:
+                        if not isinstance(item_data, dict):
+                            raise ValueError("Item deve ser um objeto JSON")
+
+                        # Extrair campos do JSON (ignorar campos adicionais)
+                        classname = item_data.get("classname", "").strip()
+                        if not classname:
+                            raise ValueError("Campo 'classname' é obrigatório")
+
+                        name = item_data.get("name", "").strip()
+                        if not name:
+                            name = (
+                                classname  # Fallback para classname se name não existir
+                            )
+
+                        # Preços - usar current_price e current_average
+                        current_price = item_data.get("current_price")
+                        current_average = item_data.get("current_average")
+
+                        # Quantidade disponível
+                        current_quantity = item_data.get("current_quantity", 0)
+
+                        # Converter preços para Decimal
+                        try:
+                            last_price = (
+                                Decimal(str(current_price))
+                                if current_price is not None
+                                else Decimal("0.00")
+                            )
+                        except (ValueError, TypeError):
+                            last_price = Decimal("0.00")
+
+                        try:
+                            average_price = (
+                                Decimal(str(current_average))
+                                if current_average is not None
+                                else Decimal("0.00")
+                            )
+                        except (ValueError, TypeError):
+                            average_price = Decimal("0.00")
+
+                        # Garantir que available_offers seja um inteiro
+                        try:
+                            available_offers = (
+                                int(current_quantity)
+                                if current_quantity is not None
+                                else 0
+                            )
+                        except (ValueError, TypeError):
+                            available_offers = 0
+
+                        # Gerar URL da imagem usando o mesmo padrão do LegacyPriceService
+                        # Ignorar qualquer image_url que venha no JSON
+                        image_url = (
+                            f"{LegacyPriceService.IMAGE_BASE_URL}/{classname}.png"
+                        )
+
+                        # Criar ou atualizar o item
+                        item, was_created = Item.objects.update_or_create(
+                            slug=classname,
+                            defaults={
+                                "name": name,
+                                "last_price": last_price,
+                                "average_price": average_price,
+                                "available_offers": available_offers,
+                                # image_url sempre gerado a partir do classname
+                                "image_url": image_url,
+                                "description": item_data.get("description", "").strip()
+                                or "",
+                                # price_history pode ser uma lista vazia se não existir
+                                "price_history": item_data.get("price_history", []),
+                            },
+                        )
+
+                        if was_created:
+                            created += 1
+                        else:
+                            updated += 1
+
+                    except Exception as e:
+                        errors += 1
+                        classname_str = (
+                            item_data.get("classname", "desconhecido")
+                            if isinstance(item_data, dict)
+                            else "inválido"
+                        )
+                        error_msg = f"Erro ao importar '{classname_str}': {str(e)}"
+                        error_messages.append(error_msg)
+
+            try:
+                _import()
+
+                # Mensagens de sucesso
+                if created > 0:
+                    messages.success(
+                        request, f"{created} item(ns) criado(s) com sucesso."
+                    )
+                if updated > 0:
+                    messages.success(
+                        request, f"{updated} item(ns) atualizado(s) com sucesso."
+                    )
+                if errors > 0:
+                    messages.warning(
+                        request, f"{errors} item(ns) com erro durante a importação."
+                    )
+                    for error_msg in error_messages[
+                        :10
+                    ]:  # Mostrar apenas os 10 primeiros erros
+                        messages.error(request, error_msg)
+                    if len(error_messages) > 10:
+                        messages.info(
+                            request, f"... e mais {len(error_messages) - 10} erro(s)."
+                        )
+
+                if created == 0 and updated == 0 and errors == 0:
+                    messages.info(request, "Nenhum item foi processado.")
+
+                # Redirecionar para a lista de itens
+                return redirect("admin:legacy_item_changelist")
+
+            except Exception as e:
+                messages.error(request, f"Erro durante a importação: {str(e)}")
+                return render(request, "admin/legacy/item/import_json.html", context)
+
+        # GET request - mostrar formulário
+        return render(request, "admin/legacy/item/import_json.html", context)
 
     def create_from_slug(self, request, queryset):
         """Cria ou atualiza item a partir do slug usando a API externa"""
