@@ -121,14 +121,34 @@ services:
       - nft_portal_network
     restart: unless-stopped
 
+  # Serviço para popular o volume do frontend com os arquivos da imagem
+  frontend_init:
+    image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-fmartns/nftmarketplace.com.br}-frontend:${TAG:-latest}
+    volumes:
+      - frontend_dist:/target
+    command: >
+      /bin/sh -c "
+      echo 'Copiando arquivos do frontend para o volume compartilhado...' &&
+      cp -r /usr/share/nginx/html/. /target/ &&
+      echo 'Arquivos copiados com sucesso!' &&
+      ls -la /target/ | head -20 &&
+      echo 'Volume do frontend inicializado!'"
+    networks:
+      - nft_portal_network
+    restart: "no"
+
   frontend:
     image: ${REGISTRY:-ghcr.io}/${IMAGE_NAME:-fmartns/nftmarketplace.com.br}-frontend:${TAG:-latest}
     env_file:
       - ../.env
     volumes:
       - frontend_dist:/usr/share/nginx/html
+    command: ["nginx", "-g", "daemon off;"]
     depends_on:
-      - web
+      frontend_init:
+        condition: service_completed_successfully
+      web:
+        condition: service_healthy
     networks:
       - nft_portal_network
     restart: unless-stopped
@@ -138,6 +158,8 @@ services:
     depends_on:
       web:
         condition: service_healthy
+      frontend_init:
+        condition: service_completed_successfully
       frontend:
         condition: service_started
     volumes:
