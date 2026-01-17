@@ -312,19 +312,45 @@ class AbacatePayService:
             amount_cents = product_price_cents + ABACATEPAY_FEE_CENTS
         else:
             # Se products foi fornecido, adiciona a taxa como um item adicional
-            fee_product = {
-                "externalId": "abacatepay_fee",
-                "name": "Taxa de processamento",
-                "description": "Taxa de processamento AbacatePay",
-                "quantity": 1,
-                "price": ABACATEPAY_FEE_CENTS,
-            }
-            products.append(fee_product)
+            # Verifica se a taxa já não foi adicionada (evita duplicação)
+            has_fee = any(p.get("externalId") == "abacatepay_fee" for p in products)
+
+            if not has_fee:
+                fee_product = {
+                    "externalId": "abacatepay_fee",
+                    "name": "Taxa de processamento",
+                    "description": "Taxa de processamento AbacatePay",
+                    "quantity": 1,
+                    "price": ABACATEPAY_FEE_CENTS,
+                }
+                products.append(fee_product)
+
             # Calcula o total somando todos os produtos (incluindo a taxa)
             total_products_cents = sum(
                 p.get("price", 0) * p.get("quantity", 1) for p in products
             )
             amount_cents = total_products_cents
+
+            # Log para debug
+            logger.debug(
+                f"Products fornecidos: {len(products)} produtos, "
+                f"total calculado: {total_products_cents} centavos"
+            )
+
+        # Validação: AbacatePay requer valor mínimo de R$ 1,00 (100 centavos)
+        MIN_AMOUNT_CENTS = 100
+        if amount_cents < MIN_AMOUNT_CENTS:
+            logger.error(
+                f"Valor total muito baixo: {amount_cents} centavos (R$ {amount_cents / 100:.2f}). "
+                f"Valor original: R$ {amount:.2f}, Taxa: R$ {ABACATEPAY_FEE:.2f}"
+            )
+            return {
+                "data": None,
+                "error": {
+                    "message": f"Valor mínimo para pagamento é R$ 1,00 (incluindo taxa de R$ {ABACATEPAY_FEE:.2f}). Valor atual: R$ {amount_cents / 100:.2f}",
+                    "statusCode": 400,
+                },
+            }
 
         # Campos returnUrl e completionUrl são obrigatórios
         # Se não fornecidos, usa a primeira origem do frontend
@@ -344,6 +370,13 @@ class AbacatePayService:
                 return_url = f"{base_url}/payment"
             if not completion_url:
                 completion_url = f"{base_url}/payment/success"
+
+        # Log para debug (verificar se amount_cents está correto)
+        logger.info(
+            f"Criando cobrança: amount_cents={amount_cents}, "
+            f"products_count={len(products)}, "
+            f"products_total={sum(p.get('price', 0) * p.get('quantity', 1) for p in products)}"
+        )
 
         data = {
             "amount": amount_cents,
