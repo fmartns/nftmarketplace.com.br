@@ -11,6 +11,10 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+# Taxa fixa do AbacatePay: R$ 0,80 por transação
+ABACATEPAY_FEE = Decimal("0.80")
+ABACATEPAY_FEE_CENTS = 80
+
 
 class AbacatePayService:
     """
@@ -282,21 +286,45 @@ class AbacatePayService:
         Returns:
             Dict com dados da cobrança criada ou erro
         """
-        # Converte Decimal para centavos (int)
-        amount_cents = int(amount * 100)
-
         # Campo products é obrigatório
         if not products:
             # Se não fornecido, cria um produto genérico
+            # Calcula o preço do produto (valor original sem a taxa)
+            product_price_cents = int(amount * 100)
+            # Adiciona a taxa como um item separado
             products = [
                 {
-                    "externalId": f"product_{int(amount_cents)}",
+                    "externalId": f"product_{product_price_cents}",
                     "name": description or "Produto",
                     "description": description or "Produto",
                     "quantity": 1,
-                    "price": amount_cents,
-                }
+                    "price": product_price_cents,
+                },
+                {
+                    "externalId": "abacatepay_fee",
+                    "name": "Taxa de processamento",
+                    "description": "Taxa de processamento AbacatePay",
+                    "quantity": 1,
+                    "price": ABACATEPAY_FEE_CENTS,
+                },
             ]
+            # Calcula o total: produto + taxa
+            amount_cents = product_price_cents + ABACATEPAY_FEE_CENTS
+        else:
+            # Se products foi fornecido, adiciona a taxa como um item adicional
+            fee_product = {
+                "externalId": "abacatepay_fee",
+                "name": "Taxa de processamento",
+                "description": "Taxa de processamento AbacatePay",
+                "quantity": 1,
+                "price": ABACATEPAY_FEE_CENTS,
+            }
+            products.append(fee_product)
+            # Calcula o total somando todos os produtos (incluindo a taxa)
+            total_products_cents = sum(
+                p.get("price", 0) * p.get("quantity", 1) for p in products
+            )
+            amount_cents = total_products_cents
 
         # Campos returnUrl e completionUrl são obrigatórios
         # Se não fornecidos, usa a primeira origem do frontend
