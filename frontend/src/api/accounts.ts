@@ -12,6 +12,7 @@ export interface User {
   nick_habbo?: string;
   habbo_validado?: boolean;
   wallet_address?: string;
+  perfil_completo?: boolean;
   created_at: string;
   updated_at: string;
 }

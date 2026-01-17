@@ -162,6 +162,9 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
   )}`;
 
   // Validação de perfil
+  // Validar se o perfil do usuário está completo para comprar
+  // Nota: Esta validação é específica para compra, não usa perfil_completo do backend
+  // que requer mais campos (telefone, nick_habbo, wallet_address)
   const validateProfile = (userProfile: User | null): { isValid: boolean; missingFields: string[] } => {
     if (!userProfile) {
       return { isValid: false, missingFields: ['CPF', 'Nome completo', 'Email', 'Data de nascimento'] };
@@ -169,20 +172,30 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
 
     const missing: string[] = [];
     
-    if (!userProfile.cpf || userProfile.cpf.trim() === '') {
+    // CPF: verifica se existe e não está vazio (necessário para pagamento)
+    const cpf = userProfile.cpf;
+    if (!cpf || (typeof cpf === 'string' && cpf.trim() === '')) {
       missing.push('CPF');
     }
     
-    if (!userProfile.first_name || userProfile.first_name.trim() === '' || 
-        !userProfile.last_name || userProfile.last_name.trim() === '') {
+    // Nome completo: verifica first_name E last_name (necessário para pagamento)
+    const firstName = userProfile.first_name;
+    const lastName = userProfile.last_name;
+    if (!firstName || (typeof firstName === 'string' && firstName.trim() === '') ||
+        !lastName || (typeof lastName === 'string' && lastName.trim() === '')) {
       missing.push('Nome completo');
     }
     
-    if (!userProfile.email || userProfile.email.trim() === '') {
+    // Email: verifica se existe e não está vazio (necessário para comunicação)
+    const email = userProfile.email;
+    if (!email || (typeof email === 'string' && email.trim() === '')) {
       missing.push('Email');
     }
     
-    if (!userProfile.data_nascimento || userProfile.data_nascimento.trim() === '') {
+    // Data de nascimento: verifica se existe (pode ser string de data ou null)
+    // Necessário para validação de idade e documentos
+    const dataNascimento = userProfile.data_nascimento;
+    if (!dataNascimento || (typeof dataNascimento === 'string' && dataNascimento.trim() === '')) {
       missing.push('Data de nascimento');
     }
 
