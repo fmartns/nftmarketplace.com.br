@@ -7,6 +7,7 @@ class NftCollectionSerializer(serializers.ModelSerializer):
     author = serializers.CharField(read_only=True)
     floor_price_eth = serializers.CharField(read_only=True)
     total_volume_eth = serializers.CharField(read_only=True)
+    items_count = serializers.SerializerMethodField()
 
     class Meta:
         model = NftCollection
@@ -44,7 +45,16 @@ class NftCollectionSerializer(serializers.ModelSerializer):
             "author",
             "floor_price_eth",
             "total_volume_eth",
+            "items_count",
         ]
+
+    def get_items_count(self, obj):
+        """Calcula dinamicamente o número de itens na coleção"""
+        # Usa o valor annotado se disponível (mais eficiente)
+        if hasattr(obj, "items_count_calculated"):
+            return obj.items_count_calculated
+        # Fallback para contagem direta
+        return obj.items.count() if hasattr(obj, "items") else 0
 
     def validate(self, attrs):
         """Garante que URLs vazias sejam string vazia ao invés de None"""

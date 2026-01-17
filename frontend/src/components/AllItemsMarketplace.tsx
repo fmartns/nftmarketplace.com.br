@@ -4,68 +4,15 @@ import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { Card, CardContent } from './ui/card';
 import { Separator } from './ui/separator';
-import { Search, Filter, Grid3X3, List, ShoppingCart, Trash2, Sparkles, Hammer, Package } from 'lucide-react';
+import { Checkbox } from './ui/checkbox';
+import { Search, Filter, Grid3X3, List, ShoppingCart, Trash2 } from 'lucide-react';
 import { NFTCard } from './NFTCard';
 import { NFTDetailModal } from './NFTDetailModal';
-import { fetchNFTItems, type NFTItem } from '@/api/nft';
+import { fetchNFTItems, fetchCollections, type NFTItem, type NftCollection } from '@/api/nft';
 import { Skeleton } from './ui/skeleton';
 
-// Baseado no model NFTItem do Django
-const rarityOptions = [
-  { id: 'comum', name: 'Comum', color: 'bg-gray-500' },
-  { id: 'incomum', name: 'Incomum', color: 'bg-green-500' },
-  { id: 'raro', name: 'Raro', color: 'bg-blue-500' },
-  { id: 'epico', name: 'Épico', color: 'bg-purple-500' },
-  { id: 'lendario', name: 'Lendário', color: 'bg-yellow-500' },
-  { id: 'ultra-raro', name: 'Ultra Raro', color: 'bg-red-500' }
-];
 
-const itemTypeOptions = [
-  { id: 'mobilia', name: 'Mobília' },
-  { id: 'decoracao', name: 'Decoração' },
-  { id: 'pets', name: 'Pets' },
-  { id: 'wallpaper', name: 'Papel de Parede' },
-  { id: 'piso', name: 'Piso' },
-  { id: 'efeitos', name: 'Efeitos' },
-  { id: 'badge', name: 'Badge' },
-];
-
-const itemSubTypeOptions = [
-  { id: 'cadeira', name: 'Cadeira', parent: 'mobilia' },
-  { id: 'mesa', name: 'Mesa', parent: 'mobilia' },
-  { id: 'cama', name: 'Cama', parent: 'mobilia' },
-  { id: 'sofa', name: 'Sofá', parent: 'mobilia' },
-  { id: 'estante', name: 'Estante', parent: 'mobilia' },
-  { id: 'luminaria', name: 'Luminária', parent: 'decoracao' },
-  { id: 'quadro', name: 'Quadro', parent: 'decoracao' },
-  { id: 'planta', name: 'Planta', parent: 'decoracao' },
-  { id: 'tapete', name: 'Tapete', parent: 'decoracao' },
-];
-
-const materialOptions = [
-  { id: 'madeira', name: 'Madeira' },
-  { id: 'metal', name: 'Metal' },
-  { id: 'tecido', name: 'Tecido' },
-  { id: 'plastico', name: 'Plástico' },
-  { id: 'vidro', name: 'Vidro' },
-  { id: 'cristal', name: 'Cristal' },
-  { id: 'ouro', name: 'Ouro' },
-  { id: 'prata', name: 'Prata' },
-];
-
-const sourceOptions = [
-  { id: 'catalogo', name: 'Catálogo' },
-  { id: 'evento', name: 'Evento Especial' },
-  { id: 'limitado', name: 'Edição Limitada' },
-  { id: 'raro', name: 'Achado Raro' },
-  { id: 'exclusivo', name: 'Exclusivo' },
-  { id: 'seasonal', name: 'Sazonal' },
-];
-
-// Coleções (placeholder). Podemos popular com /collections/ depois.
-const collections = [
-  { id: 'all', name: 'Todas as Coleções', count: 0 },
-];
+// Coleções serão carregadas do backend
 
 // Mock items com campos do model NFTItem
 const allItems = [
@@ -232,18 +179,12 @@ const allItems = [
 ];
 
 export function AllItemsMarketplace() {
-  const [selectedCollection, setSelectedCollection] = useState('all');
+  const [selectedCollections, setSelectedCollections] = useState<string[]>([]); // Múltiplas coleções
+  const [collections, setCollections] = useState<NftCollection[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('popular');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRarity, setSelectedRarity] = useState('all');
-  const [selectedItemType, setSelectedItemType] = useState('all');
-  const [selectedItemSubType, setSelectedItemSubType] = useState('all');
-  const [selectedMaterial, setSelectedMaterial] = useState('all');
-  const [selectedSource, setSelectedSource] = useState('all');
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-  const [showCraftedOnly, setShowCraftedOnly] = useState(false);
-  const [showCraftMaterialsOnly, setShowCraftMaterialsOnly] = useState(false);
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [showSelectedOnly, setShowSelectedOnly] = useState(false);
   const [selectedItemForModal, setSelectedItemForModal] = useState<any>(null);
@@ -254,10 +195,22 @@ export function AllItemsMarketplace() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  // Buscar coleções do backend
+  useEffect(() => {
+    let mounted = true;
+    fetchCollections().then((data) => {
+      if (!mounted) return;
+      setCollections(data);
+    }).catch(() => {
+      // Ignora erros silenciosamente
+    });
+    return () => { mounted = false; };
+  }, []);
+
   // Reset paginação quando filtros mudarem
   useEffect(() => {
     setPage(1);
-  }, [selectedCollection, selectedRarity, selectedItemType, selectedItemSubType, selectedMaterial, priceRange.min, priceRange.max, searchQuery]);
+  }, [selectedCollections, priceRange.min, priceRange.max, searchQuery]);
 
   // Buscar itens do backend
   useEffect(() => {
@@ -267,13 +220,11 @@ export function AllItemsMarketplace() {
         setLoading(true);
         setError(null);
         const params: any = { page_size: 12, page };
-        if (selectedCollection !== 'all') params.collection_slug = selectedCollection;
-        if (selectedRarity !== 'all') params.rarity = selectedRarity;
-        if (selectedItemType !== 'all') params.item_type = selectedItemType;
-        if (selectedItemSubType !== 'all') params.item_sub_type = selectedItemSubType;
-        if (selectedMaterial !== 'all') params.material = selectedMaterial;
-  if (priceRange.min) params.min_price_brl = priceRange.min;
-  if (priceRange.max) params.max_price_brl = priceRange.max;
+        if (selectedCollections.length > 0) {
+          params.collection_slug = selectedCollections.join(',');
+        }
+        if (priceRange.min) params.min_price_brl = priceRange.min;
+        if (priceRange.max) params.max_price_brl = priceRange.max;
         if (searchQuery) params.search = searchQuery;
         const res = await fetchNFTItems(params);
         if (!mounted) return;
@@ -288,29 +239,24 @@ export function AllItemsMarketplace() {
       }
     })();
     return () => { mounted = false; };
-  }, [page, selectedCollection, selectedRarity, selectedItemType, selectedItemSubType, selectedMaterial, priceRange.min, priceRange.max, searchQuery]);
+  }, [page, selectedCollections, priceRange.min, priceRange.max, searchQuery]);
 
   const filteredItems = useMemo(() => items.filter((item: any) => {
-    const matchesCollection = selectedCollection === 'all' || item.collection_slug === selectedCollection || String(item.collection) === selectedCollection;
+    // Se nenhuma coleção está selecionada, mostra todos os itens
+    const matchesCollection = selectedCollections.length === 0 || 
+      (item.collection_slug && selectedCollections.includes(item.collection_slug));
     const q = searchQuery.toLowerCase();
     const matchesSearch = !q ||
       (item.name && item.name.toLowerCase().includes(q)) ||
       (item.original_name && String(item.original_name).toLowerCase().includes(q)) ||
       (item.collection_name && item.collection_name.toLowerCase().includes(q)) ||
       (item.product_code && item.product_code.toLowerCase().includes(q));
-    const matchesRarity = selectedRarity === 'all' || item.rarity === selectedRarity;
-    const matchesItemType = selectedItemType === 'all' || item.item_type === selectedItemType;
-    const matchesItemSubType = selectedItemSubType === 'all' || item.item_sub_type === selectedItemSubType;
-    const matchesMaterial = selectedMaterial === 'all' || item.material === selectedMaterial;
-    // Flags de craft não existem no backend; ignorar filtros quando ativados
-    const matchesCrafted = !showCraftedOnly;
-    const matchesCraftMaterial = !showCraftMaterialsOnly;
     const matchesSelection = !showSelectedOnly || selectedItems.includes(String(item.id));
     const itemPrice = Number(item.last_price_brl || 0);
     const matchesMinPrice = !priceRange.min || itemPrice >= parseFloat(priceRange.min);
     const matchesMaxPrice = !priceRange.max || itemPrice <= parseFloat(priceRange.max);
-    return matchesCollection && matchesSearch && matchesRarity && matchesItemType && matchesItemSubType && matchesMaterial && matchesCrafted && matchesCraftMaterial && matchesSelection && matchesMinPrice && matchesMaxPrice;
-  }), [items, selectedCollection, searchQuery, selectedRarity, selectedItemType, selectedItemSubType, selectedMaterial, showCraftedOnly, showCraftMaterialsOnly, selectedItems, priceRange.min, priceRange.max, showSelectedOnly]);
+    return matchesCollection && matchesSearch && matchesSelection && matchesMinPrice && matchesMaxPrice;
+  }), [items, selectedCollections, searchQuery, selectedItems, priceRange.min, priceRange.max, showSelectedOnly]);
 
   const handleItemSelect = (itemId: string) => {
     setSelectedItems(prev => 
@@ -355,16 +301,25 @@ export function AllItemsMarketplace() {
   };
 
   const clearAllFilters = () => {
-    setSelectedCollection('all');
-    setSelectedRarity('all');
-    setSelectedItemType('all');
-    setSelectedItemSubType('all');
-    setSelectedMaterial('all');
-    setSelectedSource('all');
+    setSelectedCollections([]);
     setPriceRange({ min: '', max: '' });
-    setShowCraftedOnly(false);
-    setShowCraftMaterialsOnly(false);
     setSearchQuery('');
+  };
+
+  const handleCollectionToggle = (collectionSlug: string) => {
+    setSelectedCollections(prev => 
+      prev.includes(collectionSlug)
+        ? prev.filter(slug => slug !== collectionSlug)
+        : [...prev, collectionSlug]
+    );
+  };
+
+  const handleSelectAllCollections = () => {
+    if (selectedCollections.length === collections.length) {
+      setSelectedCollections([]);
+    } else {
+      setSelectedCollections(collections.map(c => c.slug));
+    }
   };
 
   return (
@@ -459,20 +414,44 @@ export function AllItemsMarketplace() {
 
                   <Separator className="border-border/40" />
 
-                  {/* Collection Filter */}
+                  {/* Collection Filter - Multi-select com checkboxes */}
                   <div>
-                    <label className="text-sm font-medium mb-3 block">Coleção</label>
-                    <select
-                      value={selectedCollection}
-                      onChange={(e) => setSelectedCollection(e.target.value)}
-                      className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                    >
-                      {collections.map((collection) => (
-                        <option key={collection.id} value={collection.id}>
-                          {collection.name} ({collection.count})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-sm font-medium block">Coleção</label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleSelectAllCollections}
+                        className="h-auto p-1 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {selectedCollections.length === collections.length ? 'Desmarcar' : 'Marcar todas'}
+                      </Button>
+                    </div>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {collections.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Carregando coleções...</p>
+                      ) : (
+                        collections.map((collection) => (
+                          <div key={collection.slug} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`collection-${collection.slug}`}
+                              checked={selectedCollections.includes(collection.slug)}
+                              onCheckedChange={() => handleCollectionToggle(collection.slug)}
+                            />
+                            <label
+                              htmlFor={`collection-${collection.slug}`}
+                              className="text-sm cursor-pointer flex-1 flex items-center justify-between"
+                            >
+                              <span>{collection.name}</span>
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({collection.items_count ?? 0})
+                              </span>
+                            </label>
+                          </div>
+                        ))
+                      )}
+                    </div>
                   </div>
 
                   <Separator className="border-border/40" />
@@ -495,149 +474,6 @@ export function AllItemsMarketplace() {
                         onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
                         className="bg-muted/30 border-border/40 text-sm"
                       />
-                    </div>
-                  </div>
-
-                  <Separator className="border-border/40" />
-
-                  {/* Item Characteristics */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-3 text-[#FFE000]">Características</h3>
-                    
-                    {/* Rarity */}
-                    <div className="mb-4">
-                      <label className="text-xs text-muted-foreground mb-2 block">Raridade</label>
-                      <select
-                        value={selectedRarity}
-                        onChange={(e) => setSelectedRarity(e.target.value)}
-                        className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                      >
-                        <option value="all">Todas</option>
-                        {rarityOptions.map((rarity) => (
-                          <option key={rarity.id} value={rarity.id}>
-                            {rarity.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Item Type */}
-                    <div className="mb-4">
-                      <label className="text-xs text-muted-foreground mb-2 block">Tipo de Item</label>
-                      <select
-                        value={selectedItemType}
-                        onChange={(e) => {
-                          setSelectedItemType(e.target.value);
-                          setSelectedItemSubType('all');
-                        }}
-                        className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                      >
-                        <option value="all">Todos</option>
-                        {itemTypeOptions.map((type) => (
-                          <option key={type.id} value={type.id}>
-                            {type.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Item Sub Type */}
-                    <div className="mb-4">
-                      <label className="text-xs text-muted-foreground mb-2 block">Subtipo</label>
-                      <select
-                        value={selectedItemSubType}
-                        onChange={(e) => setSelectedItemSubType(e.target.value)}
-                        className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                        disabled={selectedItemType === 'all'}
-                      >
-                        <option value="all">Todos</option>
-                        {itemSubTypeOptions
-                          .filter(st => selectedItemType === 'all' || st.parent === selectedItemType)
-                          .map((subtype) => (
-                            <option key={subtype.id} value={subtype.id}>
-                              {subtype.name}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-
-                    {/* Material */}
-                    <div className="mb-4">
-                      <label className="text-xs text-muted-foreground mb-2 block">Material</label>
-                      <select
-                        value={selectedMaterial}
-                        onChange={(e) => setSelectedMaterial(e.target.value)}
-                        className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                      >
-                        <option value="all">Todos</option>
-                        {materialOptions.map((material) => (
-                          <option key={material.id} value={material.id}>
-                            {material.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Source */}
-                    <div className="mb-4">
-                      <label className="text-xs text-muted-foreground mb-2 block">Origem</label>
-                      <select
-                        value={selectedSource}
-                        onChange={(e) => setSelectedSource(e.target.value)}
-                        className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                      >
-                        <option value="all">Todas</option>
-                        {sourceOptions.map((source) => (
-                          <option key={source.id} value={source.id}>
-                            {source.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <Separator className="border-border/40" />
-
-                  {/* Special Filters */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-medium block text-[#FFE000]">Filtros Especiais</label>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Hammer className="w-4 h-4 text-muted-foreground" />
-                        <label className="text-sm">Item Artesanal</label>
-                      </div>
-                      <button
-                        onClick={() => setShowCraftedOnly(!showCraftedOnly)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          showCraftedOnly ? 'bg-[#FFE000]' : 'bg-muted'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            showCraftedOnly ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Package className="w-4 h-4 text-muted-foreground" />
-                        <label className="text-sm">Material de Craft</label>
-                      </div>
-                      <button
-                        onClick={() => setShowCraftMaterialsOnly(!showCraftMaterialsOnly)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          showCraftMaterialsOnly ? 'bg-[#FFE000]' : 'bg-muted'
-                        }`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            showCraftMaterialsOnly ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
                     </div>
                   </div>
 
@@ -672,10 +508,17 @@ export function AllItemsMarketplace() {
                 <span className="text-sm text-muted-foreground">
                   {filteredItems.length} items encontrados
                 </span>
-                {selectedCollection !== 'all' && (
-                  <Badge variant="outline" className="border-[#FFE000]/30 text-[#FFE000]">
-                    {collections.find(c => c.id === selectedCollection)?.name}
-                  </Badge>
+                {selectedCollections.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedCollections.map(slug => {
+                      const collection = collections.find(c => c.slug === slug);
+                      return collection ? (
+                        <Badge key={slug} variant="outline" className="border-[#FFE000]/30 text-[#FFE000]">
+                          {collection.name}
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
                 )}
               </div>
 
@@ -724,7 +567,7 @@ export function AllItemsMarketplace() {
 
             {/* Items Grid */}
             {loading ? (
-              <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+              <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6' : 'grid-cols-1'}`}>
                 {Array.from({ length: 12 }).map((_, i) => (
                   <Skeleton key={i} className="h-72 w-full rounded-xl" />
                 ))}
@@ -732,7 +575,7 @@ export function AllItemsMarketplace() {
             ) : filteredItems.length > 0 ? (
               <div className={`grid gap-6 ${
                 viewMode === 'grid' 
-                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                  ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6' 
                   : 'grid-cols-1'
               }`}>
                 {filteredItems.map((item) => {
