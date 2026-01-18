@@ -3,6 +3,7 @@ Views para cobranças (Billing) AbacatePay
 """
 
 import logging
+from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -158,6 +159,14 @@ class BillingCreateView(APIView):
             ):
                 item_description = item.item.description_pt_br
 
+            # Converte o preço para centavos usando Decimal para evitar problemas de precisão
+            unit_price_decimal = Decimal(str(item.unit_price))
+            price_cents = int(
+                (unit_price_decimal * Decimal("100")).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_UP
+                )
+            )
+
             products.append(
                 {
                     "externalId": external_id,
@@ -165,18 +174,26 @@ class BillingCreateView(APIView):
                     "description": item_description
                     or f"{item_name} - Quantidade: {item.quantity}",
                     "quantity": item.quantity,
-                    "price": int(item.unit_price * 100),
+                    "price": price_cents,
                 }
             )
 
         if not products:
+            # Converte o preço para centavos usando Decimal para evitar problemas de precisão
+            total_decimal = Decimal(str(order.total))
+            price_cents = int(
+                (total_decimal * Decimal("100")).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_UP
+                )
+            )
+
             products = [
                 {
                     "externalId": f"order_{order.order_id}",
                     "name": description or "Produto",
                     "description": description or "Produto do pedido",
                     "quantity": 1,
-                    "price": int(order.total * 100),
+                    "price": price_cents,
                 }
             ]
 
@@ -203,7 +220,6 @@ class BillingCreateView(APIView):
         completion_url = f"{origin}/payment/success?order_id={encoded_order_id}"
 
         # Validação: Verifica se o valor total (com taxa) será pelo menos R$ 1,00
-        from decimal import Decimal
         from ..services import ABACATEPAY_FEE
 
         MIN_ORDER_TOTAL = Decimal("0.20")  # R$ 0,20 + R$ 0,80 (taxa) = R$ 1,00 mínimo

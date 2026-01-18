@@ -6,6 +6,7 @@ import { Input } from './ui/input';
 import { fetchNFTByProductCode, fetchNFTItems, type NFTItem } from '@/api/nft';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { generateAuthMessage, loginWithMetaMask, fetchUserProfile, type User } from '@/api/accounts';
+import logoImage from '@/assets/logo.png';
 
 interface HeaderProps {
   onLogoClick?: () => void;
@@ -407,20 +408,17 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex h-20 items-center justify-between">
           {/* Logo */}
           <button 
             className="flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0"
             onClick={onLogoClick}
           >
-            <div className="relative">
-              <div className="h-8 w-8 rounded-lg bg-[#FFE000] flex items-center justify-center">
-                <span className="text-black font-bold text-sm">H</span>
-              </div>
-            </div>
-            <span className="text-lg font-bold text-[#FFE000]">
-              NFT Marketplace
-            </span>
+            <img 
+              src={logoImage} 
+              alt="NFT Marketplace" 
+              className="h-11 max-w-[190px] w-auto object-contain"
+            />
           </button>
 
           {/* Navigation Menu - Desktop */}

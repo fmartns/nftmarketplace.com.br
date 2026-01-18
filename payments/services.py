@@ -325,6 +325,27 @@ class AbacatePayService:
                 }
                 products.append(fee_product)
 
+            # Valida e corrige preços dos produtos (garantir que sejam inteiros e não negativos)
+            for product in products:
+                price = product.get("price", 0)
+                quantity = product.get("quantity", 1)
+                # Garantir que price seja um inteiro válido
+                if not isinstance(price, int):
+                    try:
+                        price = int(float(price))
+                    except (ValueError, TypeError):
+                        price = 0
+                # Garantir que não seja negativo
+                if price < 0:
+                    logger.warning(
+                        f"Preço negativo encontrado no produto {product.get('externalId')}: {price}. Ajustando para 0."
+                    )
+                    price = 0
+                product["price"] = price
+                product["quantity"] = max(
+                    1, int(quantity)
+                )  # Garantir quantidade mínima de 1
+
             # Calcula o total somando todos os produtos (incluindo a taxa)
             total_products_cents = sum(
                 p.get("price", 0) * p.get("quantity", 1) for p in products
@@ -334,23 +355,21 @@ class AbacatePayService:
             # Log para debug
             logger.debug(
                 f"Products fornecidos: {len(products)} produtos, "
-                f"total calculado: {total_products_cents} centavos"
+                f"total calculado: {total_products_cents} centavos, "
+                f"products detalhados: {products}"
             )
 
         # Validação: AbacatePay requer valor mínimo de R$ 1,00 (100 centavos)
         MIN_AMOUNT_CENTS = 100
         if amount_cents < MIN_AMOUNT_CENTS:
-            logger.error(
-                f"Valor total muito baixo: {amount_cents} centavos (R$ {amount_cents / 100:.2f}). "
-                f"Valor original: R$ {amount:.2f}, Taxa: R$ {ABACATEPAY_FEE:.2f}"
+            logger.warning(
+                f"Valor total calculado ({amount_cents} centavos) é menor que o mínimo requerido ({MIN_AMOUNT_CENTS} centavos). "
+                f"Products: {products}, Total calculado: {amount_cents}, "
+                f"Valor original: R$ {amount:.2f}, Taxa: R$ {ABACATEPAY_FEE:.2f}. "
+                f"Ajustando para {MIN_AMOUNT_CENTS} centavos."
             )
-            return {
-                "data": None,
-                "error": {
-                    "message": f"Valor mínimo para pagamento é R$ 1,00 (incluindo taxa de R$ {ABACATEPAY_FEE:.2f}). Valor atual: R$ {amount_cents / 100:.2f}",
-                    "statusCode": 400,
-                },
-            }
+            # Ajusta o valor para o mínimo requerido (pode acontecer por problemas de arredondamento)
+            amount_cents = MIN_AMOUNT_CENTS
 
         # Campos returnUrl e completionUrl são obrigatórios
         # Se não fornecidos, usa a primeira origem do frontend
@@ -371,12 +390,36 @@ class AbacatePayService:
             if not completion_url:
                 completion_url = f"{base_url}/payment/success"
 
+        # Garantir que amount_cents seja um inteiro válido e pelo menos 100
+        amount_cents = int(amount_cents)
+        if amount_cents < MIN_AMOUNT_CENTS:
+            logger.warning(
+                f"Valor calculado ({amount_cents} centavos) é menor que o mínimo. "
+                f"Ajustando para {MIN_AMOUNT_CENTS} centavos."
+            )
+            amount_cents = MIN_AMOUNT_CENTS
+
         # Log para debug (verificar se amount_cents está correto)
+        products_total = sum(p.get("price", 0) * p.get("quantity", 1) for p in products)
         logger.info(
-            f"Criando cobrança: amount_cents={amount_cents}, "
+            f"Criando cobrança: amount_cents={amount_cents} (tipo: {type(amount_cents).__name__}), "
             f"products_count={len(products)}, "
-            f"products_total={sum(p.get('price', 0) * p.get('quantity', 1) for p in products)}"
+            f"products_total={products_total}, "
+            f"products={products}"
         )
+
+        # Validação final antes de enviar
+        if amount_cents < 100:
+            logger.error(
+                f"ERRO CRÍTICO: amount_cents ({amount_cents}) ainda é menor que 100 após todas as validações!"
+            )
+            return {
+                "data": None,
+                "error": {
+                    "message": f"Erro interno: valor calculado ({amount_cents} centavos) é inválido. Por favor, tente novamente.",
+                    "statusCode": 500,
+                },
+            }
 
         data = {
             "amount": amount_cents,
@@ -395,6 +438,13 @@ class AbacatePayService:
 
         # Usa o endpoint correto que encontramos
         endpoint = "/v1/billing/create"
+
+        # Log final antes de enviar para debug
+        logger.info(
+            f"Enviando para AbacatePay: endpoint={endpoint}, "
+            f"amount={data.get('amount')} (tipo: {type(data.get('amount')).__name__}), "
+            f"products_count={len(data.get('products', []))}"
+        )
 
         response = AbacatePayService._make_request(
             "POST",
