@@ -167,6 +167,14 @@ class BillingCreateView(APIView):
                 )
             )
 
+            # Validação: garantir que o preço seja válido
+            if price_cents < 0:
+                logger.warning(
+                    f"Preço negativo calculado para item {item.id}: {price_cents} centavos. "
+                    f"unit_price original: {item.unit_price}"
+                )
+                price_cents = 0
+
             products.append(
                 {
                     "externalId": external_id,
@@ -222,19 +230,23 @@ class BillingCreateView(APIView):
         # Validação: Verifica se o valor total (com taxa) será pelo menos R$ 1,00
         from ..services import ABACATEPAY_FEE
 
-        MIN_ORDER_TOTAL = Decimal("0.20")  # R$ 0,20 + R$ 0,80 (taxa) = R$ 1,00 mínimo
+        MIN_ORDER_TOTAL = Decimal("0.00")  # R$ 0,00 + R$ 1,00 (taxa) = R$ 1,00 mínimo
 
         if order.total < MIN_ORDER_TOTAL:
             return Response(
                 {
                     "error": "Valor mínimo insuficiente",
-                    "message": f"O valor mínimo para pagamento é R$ 1,00 (incluindo taxa de R$ 0,80). Valor do pedido: R$ {order.total:.2f}",
+                    "message": f"O valor mínimo para pagamento é R$ 1,00 (incluindo taxa de R$ 1,00). Valor do pedido: R$ {order.total:.2f}",
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Tenta criar a cobrança com customerId se existir
+        customer_id_to_use = customer.external_id if customer.external_id else None
+        retry_without_customer = False
+
         billing_response = AbacatePayService.create_billing(
-            customer_id=customer.external_id or None,
+            customer_id=customer_id_to_use,
             amount=order.total,
             description=description,
             products=products,
@@ -245,6 +257,71 @@ class BillingCreateView(APIView):
 
         if billing_response.get("error"):
             error_details = billing_response["error"]
+
+            # Trata erro "Customer not found" - limpa o external_id e tenta novamente sem customerId
+            error_message = (
+                error_details
+                if isinstance(error_details, str)
+                else (
+                    error_details.get("message", "")
+                    if isinstance(error_details, dict)
+                    else str(error_details)
+                )
+            )
+
+            # Só tenta novamente se tínhamos um customerId e o erro é relacionado a customer
+            # E ainda não tentamos sem customerId (evita loop infinito)
+            if (
+                customer_id_to_use
+                and not retry_without_customer
+                and (
+                    "Customer not found" in error_message
+                    or (
+                        "customer" in error_message.lower()
+                        and "not found" in error_message.lower()
+                    )
+                )
+            ):
+                logger.warning(
+                    f"Customer {customer_id_to_use} não encontrado na API. Limpando external_id e tentando novamente sem customerId."
+                )
+                # Limpa o external_id do customer local
+                customer.external_id = ""
+                customer.save(update_fields=["external_id"])
+                retry_without_customer = True
+
+                # Tenta criar a cobrança novamente sem customerId
+                billing_response = AbacatePayService.create_billing(
+                    customer_id=None,  # Não envia customerId
+                    amount=order.total,
+                    description=description,
+                    products=products,
+                    return_url=return_url,
+                    completion_url=completion_url,
+                    metadata=metadata,
+                )
+
+                # Se ainda houver erro, continua com o tratamento normal abaixo
+                if billing_response.get("error"):
+                    error_details = billing_response["error"]
+                    # Se o erro ainda for "Customer not found" mesmo sem customerId, ignora e continua
+                    # (pode ser um erro genérico da API que não afeta a criação da cobrança)
+                    error_message_retry = (
+                        error_details
+                        if isinstance(error_details, str)
+                        else (
+                            error_details.get("message", "")
+                            if isinstance(error_details, dict)
+                            else str(error_details)
+                        )
+                    )
+                    if (
+                        "Customer not found" in error_message_retry
+                        and not customer_id_to_use
+                    ):
+                        logger.warning(
+                            "API retornou 'Customer not found' mesmo sem customerId. Isso pode ser um erro genérico da API. Continuando com o tratamento normal do erro."
+                        )
 
             if (
                 isinstance(error_details, dict)
@@ -321,7 +398,7 @@ class BillingCreateView(APIView):
             customer.external_id = billing_data["customerId"]
             customer.save()
 
-        # Calcula o valor total com a taxa do AbacatePay (R$ 0,80)
+        # Calcula o valor total com a taxa do AbacatePay (R$ 1,00)
         # ABACATEPAY_FEE já foi importado acima
         total_with_fee = order.total + ABACATEPAY_FEE
 
