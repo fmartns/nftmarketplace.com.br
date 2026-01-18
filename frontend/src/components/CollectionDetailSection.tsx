@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { CollectionBanner } from './CollectionBanner';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,7 +7,8 @@ import { Card, CardContent } from './ui/card';
 import { Separator } from './ui/separator';
 import { NFTCard } from './NFTCard';
 import { NFTDetailModal } from './NFTDetailModal';
-import { ArrowLeft, Search, Grid3X3, List, ShoppingCart, Trash2, Filter, Hammer, Package } from 'lucide-react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerClose } from './ui/drawer';
+import { ArrowLeft, Search, Grid3X3, List, ShoppingCart, Trash2, Filter, X } from 'lucide-react';
 import { fetchCollectionDetail, fetchNFTItems, NftCollection, Paginated, NFTItem } from '@/api/nft';
 
 interface CollectionDetailSectionProps {
@@ -73,31 +74,107 @@ function formatPriceBRL(value: string | number | null | undefined) {
 }
 
 export function CollectionDetailSection({ collectionId, onBack }: CollectionDetailSectionProps) {
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState('price_low');
-  const [filterRarity, setFilterRarity] = useState('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
-  const [selectedItemType, setSelectedItemType] = useState('all');
-  const [selectedItemSubType, setSelectedItemSubType] = useState('all');
-  const [selectedMaterial, setSelectedMaterial] = useState('all');
-  const [selectedSource, setSelectedSource] = useState('all');
-  const [showCraftedOnly, setShowCraftedOnly] = useState(false);
-  const [showCraftMaterialsOnly, setShowCraftMaterialsOnly] = useState(false);
+  // Chave única para o sessionStorage baseada no collectionId
+  const storageKey = `collection_${collectionId}_state`;
+  const scrollKey = `collection_${collectionId}_scroll`;
+
+  // Função para carregar estado do sessionStorage
+  const loadState = () => {
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar estado do sessionStorage:', e);
+    }
+    return null;
+  };
+
+  // Carregar estado inicial do sessionStorage
+  const savedState = loadState();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(savedState?.viewMode || 'grid');
+  const [sortBy, setSortBy] = useState(savedState?.sortBy || 'price_low');
+  const [filterRarity, setFilterRarity] = useState(savedState?.filterRarity || 'all');
+  const [searchQuery, setSearchQuery] = useState(savedState?.searchQuery || '');
+  const [selectedItems, setSelectedItems] = useState<string[]>(savedState?.selectedItems || []);
+  const [priceRange, setPriceRange] = useState(savedState?.priceRange || { min: '', max: '' });
+  const [showSelectedOnly, setShowSelectedOnly] = useState(savedState?.showSelectedOnly || false);
+  const [selectedItemType, setSelectedItemType] = useState(savedState?.selectedItemType || 'all');
+  const [selectedItemSubType, setSelectedItemSubType] = useState(savedState?.selectedItemSubType || 'all');
+  const [selectedMaterial, setSelectedMaterial] = useState(savedState?.selectedMaterial || 'all');
+  const [selectedSource, setSelectedSource] = useState(savedState?.selectedSource || 'all');
+  const [showCraftedOnly, setShowCraftedOnly] = useState(savedState?.showCraftedOnly || false);
+  const [showCraftMaterialsOnly, setShowCraftMaterialsOnly] = useState(savedState?.showCraftMaterialsOnly || false);
   const [selectedItemForModal, setSelectedItemForModal] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFiltersDrawerOpen, setIsFiltersDrawerOpen] = useState(false);
 
   const [collection, setCollection] = useState<NftCollection | null>(null);
   const [items, setItems] = useState<NFTItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isUpdatingItems, setIsUpdatingItems] = useState(false); // Estado separado para atualização de itens
   const [serverCount, setServerCount] = useState<number>(0);
   const [page, setPage] = useState<number>(1);
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Salvar estado no sessionStorage sempre que mudar
+  useEffect(() => {
+    const stateToSave = {
+      viewMode,
+      sortBy,
+      filterRarity,
+      searchQuery,
+      selectedItems,
+      priceRange,
+      showSelectedOnly,
+      selectedItemType,
+      selectedItemSubType,
+      selectedMaterial,
+      selectedSource,
+      showCraftedOnly,
+      showCraftMaterialsOnly,
+    };
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(stateToSave));
+    } catch (e) {
+      console.warn('Erro ao salvar estado no sessionStorage:', e);
+    }
+  }, [storageKey, viewMode, sortBy, filterRarity, searchQuery, selectedItems, priceRange, showSelectedOnly, selectedItemType, selectedItemSubType, selectedMaterial, selectedSource, showCraftedOnly, showCraftMaterialsOnly]);
+
+  // Restaurar posição do scroll ao montar
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem(scrollKey);
+    if (savedScroll) {
+      const scrollY = parseInt(savedScroll, 10);
+      // Aguardar um pouco para garantir que o conteúdo foi renderizado
+      setTimeout(() => {
+        window.scrollTo({ top: scrollY, behavior: 'auto' });
+      }, 100);
+    }
+  }, [scrollKey]);
+
+  // Salvar posição do scroll antes de sair da página
+  useEffect(() => {
+    const handleScroll = () => {
+      sessionStorage.setItem(scrollKey, String(window.scrollY));
+    };
+    
+    // Salvar scroll periodicamente (a cada 500ms) e ao sair
+    const scrollInterval = setInterval(handleScroll, 500);
+    window.addEventListener('beforeunload', handleScroll);
+    
+    return () => {
+      clearInterval(scrollInterval);
+      window.removeEventListener('beforeunload', handleScroll);
+      // Salvar uma última vez ao desmontar
+      handleScroll();
+    };
+  }, [scrollKey]);
 
   // Load collection detail (only when slug changes)
   useEffect(() => {
@@ -141,24 +218,36 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
   useEffect(() => {
     let mounted = true;
     const t = setTimeout(() => {
-      setLoading(true);
-      setItems([]);
-      setServerCount(0);
+      // Só mostrar loading full screen na primeira carga
+      if (isInitialLoad) {
+        setLoading(true);
+      } else {
+        // Para atualizações de filtros, usar estado separado que não afeta o resto da página
+        setIsUpdatingItems(true);
+      }
       setPage(1);
       setHasMore(false);
       fetchNFTItems(buildParams(1))
         .then((list) => {
           if (!mounted) return;
+          // Atualizar itens apenas quando a resposta chegar
           setItems(list.results || []);
           setServerCount(list.count || 0);
           setHasMore(Boolean(list.next));
           setError(null);
+          setIsInitialLoad(false); // Marcar que a primeira carga foi concluída
         })
         .catch((e: any) => {
           if (!mounted) return;
           setError(e?.message || 'Falha ao carregar itens');
+          setIsInitialLoad(false);
         })
-        .finally(() => mounted && setLoading(false));
+        .finally(() => {
+          if (mounted) {
+            setLoading(false);
+            setIsUpdatingItems(false);
+          }
+        });
     }, 250);
     return () => { mounted = false; clearTimeout(t); };
   }, [collectionId, searchQuery, filterRarity, selectedItemType, selectedItemSubType, selectedMaterial, selectedSource, showCraftedOnly, showCraftMaterialsOnly, priceRange.min, priceRange.max, sortBy]);
@@ -187,7 +276,42 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, page, collectionId]);
 
-  if (loading) {
+  // Todos os hooks devem ser chamados antes de qualquer return condicional
+  // Handlers memoizados para evitar re-renders desnecessários
+  const clearAllFilters = useCallback(() => {
+    setFilterRarity('all');
+    setSelectedItemType('all');
+    setSelectedItemSubType('all');
+    setSelectedMaterial('all');
+    setSelectedSource('all');
+    setPriceRange({ min: '', max: '' });
+    setShowCraftedOnly(false);
+    setShowCraftMaterialsOnly(false);
+    setSearchQuery('');
+    // Limpar sessionStorage também
+    sessionStorage.removeItem(storageKey);
+    sessionStorage.removeItem(scrollKey);
+  }, [storageKey, scrollKey]);
+
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handlePriceMinChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPriceRange(prev => ({ ...prev, min: e.target.value }));
+  }, []);
+
+  const handlePriceMaxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPriceRange(prev => ({ ...prev, max: e.target.value }));
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    clearAllFilters();
+    setIsFiltersDrawerOpen(false);
+  }, [clearAllFilters]);
+
+  // Mostrar loading full screen apenas na primeira carga
+  if (loading && isInitialLoad) {
     return (
       <div className="py-16 lg:py-24 text-center">
         <div className="container mx-auto px-4 lg:px-8 text-muted-foreground">Carregando coleção...</div>
@@ -262,18 +386,6 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
     setIsModalOpen(true);
   };
 
-  const clearAllFilters = () => {
-    setFilterRarity('all');
-    setSelectedItemType('all');
-    setSelectedItemSubType('all');
-    setSelectedMaterial('all');
-    setSelectedSource('all');
-    setPriceRange({ min: '', max: '' });
-    setShowCraftedOnly(false);
-    setShowCraftMaterialsOnly(false);
-    setSearchQuery('');
-  };
-
   return (
     <div>
       <NFTDetailModal 
@@ -284,6 +396,68 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
           setSelectedItemForModal(null);
         }}
       />
+      
+      {/* Mobile Filters Drawer */}
+      <Drawer open={isFiltersDrawerOpen} onOpenChange={setIsFiltersDrawerOpen}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="border-b border-border/40">
+            <div className="flex items-center justify-between">
+              <DrawerTitle className="text-lg font-semibold">Filtros</DrawerTitle>
+              <DrawerClose asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <X className="h-4 w-4" />
+                </Button>
+              </DrawerClose>
+            </div>
+          </DrawerHeader>
+          <div className="overflow-y-auto p-6">
+            <div className="space-y-6">
+              {/* Price Range */}
+              <div>
+                <label className="text-sm font-medium mb-3 block text-[#FFE000]">Preço (R$)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    placeholder="Mín"
+                    type="number"
+                    value={priceRange.min}
+                    onChange={handlePriceMinChange}
+                    className="bg-muted/30 border-border/40 text-sm"
+                    autoComplete="off"
+                  />
+                  <Input
+                    placeholder="Máx"
+                    type="number"
+                    value={priceRange.max}
+                    onChange={handlePriceMaxChange}
+                    className="bg-muted/30 border-border/40 text-sm"
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+
+              <Separator className="border-border/40" />
+
+              <div className="space-y-2">
+                <Button 
+                  className="w-full bg-muted text-muted-foreground cursor-default"
+                  disabled
+                  title="Filtros aplicados automaticamente"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  Filtros aplicados automaticamente
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleClearFilters}
+                >
+                  Limpar Filtros
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
       
       {/* Collection Banner */}
       {(() => {
@@ -356,12 +530,12 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
           )}
 
           <div className="grid lg:grid-cols-4 gap-8">
-            {/* Sidebar com Filtros */}
-            <div className="lg:col-span-1">
+            {/* Sidebar com Filtros - Desktop Only */}
+            <div className="hidden lg:block lg:col-span-1">
               <Card className="bg-card/50 backdrop-blur border-border/40 sticky top-24">
                 <CardContent className="p-6">
                   <div className="space-y-6">
-                    {/* Search */}
+                    {/* Search - Desktop Only */}
                     <div>
                       <label className="text-sm font-medium mb-2 block">Buscar</label>
                       <div className="relative">
@@ -369,8 +543,9 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
                         <Input
                           placeholder="Nome ou código..."
                           value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
+                          onChange={handleSearchChange}
                           className="pl-10 bg-muted/30 border-border/40"
+                          autoComplete="off"
                         />
                       </div>
                     </div>
@@ -385,159 +560,18 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
                           placeholder="Mín"
                           type="number"
                           value={priceRange.min}
-                          onChange={(e) => setPriceRange(prev => ({ ...prev, min: e.target.value }))}
+                          onChange={handlePriceMinChange}
                           className="bg-muted/30 border-border/40 text-sm"
+                          autoComplete="off"
                         />
                         <Input
                           placeholder="Máx"
                           type="number"
                           value={priceRange.max}
-                          onChange={(e) => setPriceRange(prev => ({ ...prev, max: e.target.value }))}
+                          onChange={handlePriceMaxChange}
                           className="bg-muted/30 border-border/40 text-sm"
+                          autoComplete="off"
                         />
-                      </div>
-                    </div>
-
-                    <Separator className="border-border/40" />
-
-                    {/* Item Characteristics */}
-                    <div>
-                      <h3 className="text-sm font-medium mb-3 text-[#FFE000]">Características</h3>
-                      
-                      {/* Rarity */}
-                      <div className="mb-4">
-                        <label className="text-xs text-muted-foreground mb-2 block">Raridade</label>
-                        <select
-                          value={filterRarity}
-                          onChange={(e) => setFilterRarity(e.target.value)}
-                          className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                        >
-                          <option value="all">Todas</option>
-                          {rarityOptions.map((rarity) => (
-                            <option key={rarity.id} value={rarity.id}>
-                              {rarity.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Item Type */}
-                      <div className="mb-4">
-                        <label className="text-xs text-muted-foreground mb-2 block">Tipo de Item</label>
-                        <select
-                          value={selectedItemType}
-                          onChange={(e) => {
-                            setSelectedItemType(e.target.value);
-                            setSelectedItemSubType('all');
-                          }}
-                          className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                        >
-                          <option value="all">Todos</option>
-                          {itemTypeOptions.map((type) => (
-                            <option key={type.id} value={type.id}>
-                              {type.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Item Sub Type */}
-                      <div className="mb-4">
-                        <label className="text-xs text-muted-foreground mb-2 block">Subtipo</label>
-                        <select
-                          value={selectedItemSubType}
-                          onChange={(e) => setSelectedItemSubType(e.target.value)}
-                          className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                          disabled={selectedItemType === 'all'}
-                        >
-                          <option value="all">Todos</option>
-                          {itemSubTypeOptions
-                            .filter(st => selectedItemType === 'all' || st.parent === selectedItemType)
-                            .map((subtype) => (
-                              <option key={subtype.id} value={subtype.id}>
-                                {subtype.name}
-                              </option>
-                            ))}
-                        </select>
-                      </div>
-
-                      {/* Material */}
-                      <div className="mb-4">
-                        <label className="text-xs text-muted-foreground mb-2 block">Material</label>
-                        <select
-                          value={selectedMaterial}
-                          onChange={(e) => setSelectedMaterial(e.target.value)}
-                          className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                        >
-                          <option value="all">Todos</option>
-                          {materialOptions.map((material) => (
-                            <option key={material.id} value={material.id}>
-                              {material.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Source */}
-                      <div className="mb-4">
-                        <label className="text-xs text-muted-foreground mb-2 block">Origem</label>
-                        <select
-                          value={selectedSource}
-                          onChange={(e) => setSelectedSource(e.target.value)}
-                          className="w-full p-2 bg-muted/30 border border-border/40 rounded-lg text-sm"
-                        >
-                          <option value="all">Todas</option>
-                          {sourceOptions.map((source) => (
-                            <option key={source.id} value={source.id}>
-                              {source.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <Separator className="border-border/40" />
-
-                    {/* Special Filters */}
-                    <div className="space-y-3">
-                      <label className="text-sm font-medium block text-[#FFE000]">Filtros Especiais</label>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Hammer className="w-4 h-4 text-muted-foreground" />
-                          <label className="text-sm">Item Artesanal</label>
-                        </div>
-                        <button
-                          onClick={() => setShowCraftedOnly(!showCraftedOnly)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            showCraftedOnly ? 'bg-[#FFE000]' : 'bg-muted'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              showCraftedOnly ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Package className="w-4 h-4 text-muted-foreground" />
-                          <label className="text-sm">Material de Craft</label>
-                        </div>
-                        <button
-                          onClick={() => setShowCraftMaterialsOnly(!showCraftMaterialsOnly)}
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                            showCraftMaterialsOnly ? 'bg-[#FFE000]' : 'bg-muted'
-                          }`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              showCraftMaterialsOnly ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
                       </div>
                     </div>
 
@@ -567,9 +601,37 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
 
             {/* Main Content */}
             <div className="lg:col-span-3">
+              {/* Mobile Search - Always Visible */}
+              <div className="lg:hidden mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    placeholder="Buscar por nome ou código..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-muted/30 border-border/40"
+                  />
+                </div>
+              </div>
+
               {/* Toolbar */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                <div className="flex items-center space-x-4">
+                {/* Mobile Filter Button */}
+                <Button
+                  variant="outline"
+                  className="lg:hidden flex items-center gap-2"
+                  onClick={() => setIsFiltersDrawerOpen(true)}
+                >
+                  <Filter className="w-4 h-4" />
+                  Filtros
+                  {(priceRange.min || priceRange.max) && (
+                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                      {[priceRange.min, priceRange.max].filter(Boolean).length}
+                    </Badge>
+                  )}
+                </Button>
+                
+                <div className="flex items-center space-x-4 w-full sm:w-auto">
                   <span className="text-sm text-muted-foreground">
                     {items.length} de {serverCount} itens
                   </span>
@@ -623,30 +685,41 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
               </div>
 
               {/* Items Grid */}
-              {filteredItems.length > 0 ? (
-                <div className={`grid gap-6 ${
-                  viewMode === 'grid' 
-                    ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6' 
-                    : 'grid-cols-1'
-                }`}>
-                  {filteredItems.map((item: any) => (
-                    <div key={item.id}>
-                      <NFTCard
-                        id={String(item.id)}
-                        name={item.name}
-                        image={item.image_url || collection.name}
-                        price={formatPriceBRL(item.last_price_brl)}
-                        collection={collection.name}
-                        category={item.item_type}
-                        rarity={item.rarity}
-                        lastSale={"—"}
-                        isAuction={false}
-                        onClick={() => handleItemClick(item)}
-                      />
+              <div className="relative">
+                {/* Loading overlay sutil - apenas quando está atualizando itens e há itens */}
+                {isUpdatingItems && filteredItems.length > 0 && (
+                  <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10 rounded-lg flex items-center justify-center">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-8 h-8 border-2 border-[#FFE000] border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm text-muted-foreground">Atualizando...</span>
                     </div>
-                  ))}
-                </div>
-              ) : (
+                  </div>
+                )}
+                
+                {filteredItems.length > 0 ? (
+                  <div className={`grid gap-6 ${
+                    viewMode === 'grid' 
+                      ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6' 
+                      : 'grid-cols-1'
+                  } ${isUpdatingItems ? 'opacity-60' : 'opacity-100'} transition-opacity duration-200`}>
+                    {filteredItems.map((item: any) => (
+                      <div key={item.id}>
+                        <NFTCard
+                          id={String(item.id)}
+                          name={item.name}
+                          image={item.image_url || collection.name}
+                          price={formatPriceBRL(item.last_price_brl)}
+                          collection={collection.name}
+                          category={item.item_type}
+                          rarity={item.rarity}
+                          lastSale={"—"}
+                          isAuction={false}
+                          onClick={() => handleItemClick(item)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : !loading ? (
                 <Card className="p-12 text-center">
                   <div className="flex justify-center mb-4">
                     <Search className="w-14 h-14 text-[#FFE000]" />
@@ -662,7 +735,19 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
                     Limpar Filtros
                   </Button>
                 </Card>
+              ) : (
+                // Mostrar skeleton apenas quando está carregando e não há itens
+                <div className={`grid gap-6 ${
+                  viewMode === 'grid' 
+                    ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6' 
+                    : 'grid-cols-1'
+                }`}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="h-72 bg-muted/30 rounded-xl animate-pulse" />
+                  ))}
+                </div>
               )}
+              </div>
 
               {/* Infinite loader sentinel */}
               <div ref={loadMoreRef} className="h-12 flex items-center justify-center mt-6">
