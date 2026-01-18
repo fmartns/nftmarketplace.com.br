@@ -2,6 +2,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+import random
 from banners.models import Banner
 from banners.serializers import BannerSerializer
 
@@ -40,23 +41,25 @@ class BannerDetailAPIView(APIView):
 
 class CollectionBannerAPIView(APIView):
     """
-    Endpoint específico para o banner das páginas de coleção
+    Endpoint específico para o banner das páginas de coleção.
+    Retorna um banner aleatório entre os banners ativos.
     """
 
     permission_classes = [AllowAny]
 
     def get(self, request):
-        banner = (
-            Banner.objects.filter(is_active=True)
-            .order_by("order", "-created_at")
-            .first()
-        )
+        banners = Banner.objects.filter(is_active=True)
 
-        if banner:
-            serializer = BannerSerializer(banner, context={"request": request})
-            return Response(serializer.data)
-        else:
+        if not banners.exists():
             return Response(
                 {"message": "Nenhum banner encontrado"},
                 status=status.HTTP_404_NOT_FOUND,
             )
+
+        # Seleciona um banner aleatório
+        count = banners.count()
+        random_index = random.randint(0, count - 1)
+        banner = banners[random_index]
+
+        serializer = BannerSerializer(banner, context={"request": request})
+        return Response(serializer.data)
