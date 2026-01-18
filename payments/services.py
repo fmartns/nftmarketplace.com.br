@@ -11,9 +11,10 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# Taxa fixa do AbacatePay: R$ 0,80 por transação
-ABACATEPAY_FEE = Decimal("0.80")
-ABACATEPAY_FEE_CENTS = 80
+# Taxa fixa do AbacatePay: R$ 1,00 por transação
+# Nota: A API exige que cada produto tenha pelo menos 100 centavos
+ABACATEPAY_FEE = Decimal("1.00")
+ABACATEPAY_FEE_CENTS = 100
 
 
 class AbacatePayService:
@@ -290,7 +291,20 @@ class AbacatePayService:
         if not products:
             # Se não fornecido, cria um produto genérico
             # Calcula o preço do produto (valor original sem a taxa)
-            product_price_cents = int(amount * 100)
+            # Usa Decimal para evitar problemas de precisão
+            from decimal import Decimal, ROUND_HALF_UP
+
+            amount_decimal = Decimal(str(amount))
+            product_price_cents = int(
+                (amount_decimal * Decimal("100")).quantize(
+                    Decimal("1"), rounding=ROUND_HALF_UP
+                )
+            )
+
+            # Garantir que o preço do produto seja válido (pelo menos 1 centavo)
+            if product_price_cents < 0:
+                product_price_cents = 0
+
             # Adiciona a taxa como um item separado
             products = [
                 {
@@ -308,8 +322,6 @@ class AbacatePayService:
                     "price": ABACATEPAY_FEE_CENTS,
                 },
             ]
-            # Calcula o total: produto + taxa
-            amount_cents = product_price_cents + ABACATEPAY_FEE_CENTS
         else:
             # Se products foi fornecido, adiciona a taxa como um item adicional
             # Verifica se a taxa já não foi adicionada (evita duplicação)
@@ -334,6 +346,9 @@ class AbacatePayService:
                     try:
                         price = int(float(price))
                     except (ValueError, TypeError):
+                        logger.error(
+                            f"Erro ao converter preço do produto {product.get('externalId')}: {price}"
+                        )
                         price = 0
                 # Garantir que não seja negativo
                 if price < 0:
@@ -341,35 +356,24 @@ class AbacatePayService:
                         f"Preço negativo encontrado no produto {product.get('externalId')}: {price}. Ajustando para 0."
                     )
                     price = 0
+                # Garantir que quantity seja um inteiro válido
+                try:
+                    quantity = max(1, int(quantity))
+                except (ValueError, TypeError):
+                    logger.error(
+                        f"Erro ao converter quantidade do produto {product.get('externalId')}: {quantity}"
+                    )
+                    quantity = 1
+
+                # IMPORTANTE: Garantir que o preço seja pelo menos 1 centavo (exceto para a taxa que já é 80)
+                # A API pode estar validando cada produto individualmente
+                if price == 0 and product.get("externalId") != "abacatepay_fee":
+                    logger.error(
+                        f"Produto {product.get('externalId')} tem preço zero! Isso pode causar erro na API."
+                    )
+
                 product["price"] = price
-                product["quantity"] = max(
-                    1, int(quantity)
-                )  # Garantir quantidade mínima de 1
-
-            # Calcula o total somando todos os produtos (incluindo a taxa)
-            total_products_cents = sum(
-                p.get("price", 0) * p.get("quantity", 1) for p in products
-            )
-            amount_cents = total_products_cents
-
-            # Log para debug
-            logger.debug(
-                f"Products fornecidos: {len(products)} produtos, "
-                f"total calculado: {total_products_cents} centavos, "
-                f"products detalhados: {products}"
-            )
-
-        # Validação: AbacatePay requer valor mínimo de R$ 1,00 (100 centavos)
-        MIN_AMOUNT_CENTS = 100
-        if amount_cents < MIN_AMOUNT_CENTS:
-            logger.warning(
-                f"Valor total calculado ({amount_cents} centavos) é menor que o mínimo requerido ({MIN_AMOUNT_CENTS} centavos). "
-                f"Products: {products}, Total calculado: {amount_cents}, "
-                f"Valor original: R$ {amount:.2f}, Taxa: R$ {ABACATEPAY_FEE:.2f}. "
-                f"Ajustando para {MIN_AMOUNT_CENTS} centavos."
-            )
-            # Ajusta o valor para o mínimo requerido (pode acontecer por problemas de arredondamento)
-            amount_cents = MIN_AMOUNT_CENTS
+                product["quantity"] = quantity
 
         # Campos returnUrl e completionUrl são obrigatórios
         # Se não fornecidos, usa a primeira origem do frontend
@@ -390,39 +394,57 @@ class AbacatePayService:
             if not completion_url:
                 completion_url = f"{base_url}/payment/success"
 
-        # Garantir que amount_cents seja um inteiro válido e pelo menos 100
-        amount_cents = int(amount_cents)
-        if amount_cents < MIN_AMOUNT_CENTS:
-            logger.warning(
-                f"Valor calculado ({amount_cents} centavos) é menor que o mínimo. "
-                f"Ajustando para {MIN_AMOUNT_CENTS} centavos."
-            )
-            amount_cents = MIN_AMOUNT_CENTS
+        # Validação: AbacatePay requer valor mínimo de R$ 1,00 (100 centavos)
+        # O amount é calculado automaticamente pela API baseado nos produtos
+        # Mas precisamos validar que a soma dos produtos seja pelo menos 100 centavos
+        MIN_AMOUNT_CENTS = 100
 
-        # Log para debug (verificar se amount_cents está correto)
+        # Validação adicional: garantir que todos os produtos tenham preços válidos
+        invalid_products = []
+        for idx, product in enumerate(products):
+            price = product.get("price", 0)
+            quantity = product.get("quantity", 1)
+            external_id = product.get("externalId", "unknown")
+
+            if price <= 0:
+                error_msg = f"Produto {idx} ({external_id}) tem preço inválido: {price}"
+                logger.error(error_msg)
+                invalid_products.append(error_msg)
+            if quantity <= 0:
+                error_msg = (
+                    f"Produto {idx} ({external_id}) tem quantidade inválida: {quantity}"
+                )
+                logger.error(error_msg)
+                invalid_products.append(error_msg)
+
+        if invalid_products:
+            return {
+                "data": None,
+                "error": {
+                    "message": f"Produtos inválidos encontrados: {', '.join(invalid_products)}",
+                    "statusCode": 400,
+                },
+            }
+
         products_total = sum(p.get("price", 0) * p.get("quantity", 1) for p in products)
-        logger.info(
-            f"Criando cobrança: amount_cents={amount_cents} (tipo: {type(amount_cents).__name__}), "
-            f"products_count={len(products)}, "
-            f"products_total={products_total}, "
-            f"products={products}"
-        )
 
-        # Validação final antes de enviar
-        if amount_cents < 100:
+        if products_total < MIN_AMOUNT_CENTS:
             logger.error(
-                f"ERRO CRÍTICO: amount_cents ({amount_cents}) ainda é menor que 100 após todas as validações!"
+                f"Valor total dos produtos ({products_total} centavos) é menor que o mínimo requerido ({MIN_AMOUNT_CENTS} centavos). "
+                f"Products: {products}, Valor original: R$ {amount:.2f}, Taxa: R$ {ABACATEPAY_FEE:.2f}"
             )
             return {
                 "data": None,
                 "error": {
-                    "message": f"Erro interno: valor calculado ({amount_cents} centavos) é inválido. Por favor, tente novamente.",
-                    "statusCode": 500,
+                    "message": f"Valor mínimo para pagamento é R$ 1,00 (incluindo taxa de R$ {ABACATEPAY_FEE:.2f}). Valor atual: R$ {products_total / 100:.2f}",
+                    "statusCode": 400,
                 },
             }
 
+        # IMPORTANTE: Segundo a documentação do AbacatePay, o campo "amount" NÃO deve ser enviado
+        # A API calcula o amount automaticamente baseado na soma dos produtos
+        # https://docs.abacatepay.com/pages/payment/create
         data = {
-            "amount": amount_cents,
             "description": description,
             "frequency": "ONE_TIME",  # Campo obrigatório: ONE_TIME, RECURRING, etc.
             "methods": ["PIX"],  # Apenas PIX (CARD requer habilitação adicional)
@@ -438,13 +460,6 @@ class AbacatePayService:
 
         # Usa o endpoint correto que encontramos
         endpoint = "/v1/billing/create"
-
-        # Log final antes de enviar para debug
-        logger.info(
-            f"Enviando para AbacatePay: endpoint={endpoint}, "
-            f"amount={data.get('amount')} (tipo: {type(data.get('amount')).__name__}), "
-            f"products_count={len(data.get('products', []))}"
-        )
 
         response = AbacatePayService._make_request(
             "POST",
