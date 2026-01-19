@@ -9,6 +9,7 @@ import { ShareModal } from './ShareModal';
 import { fetchUserProfile, User } from '@/api/accounts';
 import { createOrder } from '@/api/orders';
 import { createBilling } from '@/api/payments';
+import { useSEO } from '@/hooks/useSEO';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +100,33 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
     }
     return item.price_history as PriceHistoryData;
   }, [item]);
+
+  // SEO para página do produto Legacy
+  const seoTitle = useMemo(() => {
+    if (item?.name) return `${item.name} - Legacy Item | NFT Marketplace`;
+    if (slug) return `Item Legacy ${slug} - NFT Marketplace`;
+    return undefined;
+  }, [item?.name, slug]);
+
+  const seoDescription = useMemo(() => {
+    if (item?.name) {
+      const priceText = item?.last_price ? `Preço: R$ ${formatBRL(item.last_price)}.` : '';
+      return `Compre ${item.name} no NFT Marketplace. ${priceText} Item Legacy Habbo com histórico de preços completo.`.trim();
+    }
+    if (slug) {
+      return `Item Legacy ${slug} disponível no NFT Marketplace. Explore e compre itens únicos do Habbo.`;
+    }
+    return undefined;
+  }, [item?.name, item?.last_price, slug]);
+
+  useSEO({
+    title: seoTitle,
+    description: seoDescription,
+    image: item?.image_url || undefined,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    type: 'product',
+    productImage: item?.image_url || undefined, // Usar imagem do produto como favicon
+  });
 
   const chartData = useMemo(() => {
     if (!item?.price_history) return [];

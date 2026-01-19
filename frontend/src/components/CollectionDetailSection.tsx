@@ -10,6 +10,7 @@ import { NFTDetailModal } from './NFTDetailModal';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerClose } from './ui/drawer';
 import { ArrowLeft, Search, Grid3X3, List, ShoppingCart, Trash2, Filter, X } from 'lucide-react';
 import { fetchCollectionDetail, fetchNFTItems, NftCollection, Paginated, NFTItem } from '@/api/nft';
+import { useSEO } from '@/hooks/useSEO';
 
 interface CollectionDetailSectionProps {
   collectionId: string; // now treated as slug
@@ -319,6 +320,33 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
     observer.observe(el);
     return () => observer.disconnect();
   }, [hasMore, loading, loadingMore, page, collectionId]);
+
+  // SEO para página da coleção
+  const seoTitle = useMemo(() => {
+    if (collection?.name) return `${collection.name} - Coleção NFT | NFT Marketplace`;
+    if (collectionId) return `Coleção ${collectionId} - NFT Marketplace`;
+    return undefined;
+  }, [collection?.name, collectionId]);
+
+  const seoDescription = useMemo(() => {
+    if (collection) {
+      const desc = collection.description || `Explore a coleção ${collection.name} no NFT Marketplace.`;
+      const itemsText = collection.items_count ? `${collection.items_count} itens disponíveis.` : '';
+      return `${desc} ${itemsText}`.trim();
+    }
+    if (collectionId) {
+      return `Explore a coleção ${collectionId} no NFT Marketplace. Descubra NFTs únicos e raros do Habbo.`;
+    }
+    return undefined;
+  }, [collection, collectionId]);
+
+  useSEO({
+    title: seoTitle,
+    description: seoDescription,
+    image: collection?.cover_image || collection?.profile_image || undefined,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    type: 'website',
+  });
 
   // Todos os hooks devem ser chamados antes de qualquer return condicional
   // Handlers memoizados para evitar re-renders desnecessários

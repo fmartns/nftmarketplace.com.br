@@ -14,6 +14,7 @@ import { OrdersPage } from './components/OrdersPage';
 import { PaymentSuccessPage } from './components/PaymentSuccessPage';
 import { Footer } from './components/Footer';
 import { Toaster } from './components/ui/sonner';
+import { useSEO } from './hooks/useSEO';
 
 export default function App() {
   const [path, setPath] = useState(() => window.location.pathname || '/');
@@ -107,6 +108,18 @@ export default function App() {
     }
     return null;
   }, [path]);
+
+  // SEO para Home
+  const isHome = path === '/' || path === '/home';
+  useSEO({
+    title: isHome 
+      ? 'NFT Marketplace - Compre e Venda NFTs Habbo'
+      : undefined,
+    description: isHome
+      ? 'Marketplace de NFTs Habbo. Compre e venda NFTs únicos com segurança. Explore coleções, itens raros, promoções e muito mais.'
+      : undefined,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+  });
 
   return (
     <div className="min-h-screen bg-background">
