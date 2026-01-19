@@ -180,10 +180,34 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
   useEffect(() => {
     let mounted = true;
     setCollection(null);
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    // Timeout de segurança para carregamento da coleção
+    timeoutId = setTimeout(() => {
+      if (mounted) {
+        setError('Tempo de carregamento da coleção excedido.');
+      }
+    }, 15000);
+    
     fetchCollectionDetail(collectionId)
-      .then((col) => { if (mounted) setCollection(col); })
-      .catch(() => {})
-    return () => { mounted = false; };
+      .then((col) => { 
+        if (mounted) {
+          if (timeoutId) clearTimeout(timeoutId);
+          setCollection(col);
+        }
+      })
+      .catch((e) => {
+        if (mounted) {
+          if (timeoutId) clearTimeout(timeoutId);
+          setError('Falha ao carregar informações da coleção.');
+          console.error('Erro ao carregar coleção:', e);
+        }
+      });
+    
+    return () => { 
+      mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [collectionId]);
 
   // Build API params from current filters
@@ -217,6 +241,8 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
   // Debounced fetch of first page whenever filters/search/order change
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout | null = null;
+    
     const t = setTimeout(() => {
       // Só mostrar loading full screen na primeira carga
       if (isInitialLoad) {
@@ -227,9 +253,21 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
       }
       setPage(1);
       setHasMore(false);
+      
+      // Timeout de segurança: se demorar mais de 30 segundos, considerar erro
+      timeoutId = setTimeout(() => {
+        if (mounted) {
+          setError('Tempo de carregamento excedido. Tente novamente.');
+          setLoading(false);
+          setIsUpdatingItems(false);
+          setIsInitialLoad(false);
+        }
+      }, 30000);
+      
       fetchNFTItems(buildParams(1))
         .then((list) => {
           if (!mounted) return;
+          if (timeoutId) clearTimeout(timeoutId);
           // Atualizar itens apenas quando a resposta chegar
           setItems(list.results || []);
           setServerCount(list.count || 0);
@@ -239,6 +277,7 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
         })
         .catch((e: any) => {
           if (!mounted) return;
+          if (timeoutId) clearTimeout(timeoutId);
           setError(e?.message || 'Falha ao carregar itens');
           setIsInitialLoad(false);
         })
@@ -249,7 +288,12 @@ export function CollectionDetailSection({ collectionId, onBack }: CollectionDeta
           }
         });
     }, 250);
-    return () => { mounted = false; clearTimeout(t); };
+    
+    return () => { 
+      mounted = false; 
+      clearTimeout(t);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [collectionId, searchQuery, filterRarity, selectedItemType, selectedItemSubType, selectedMaterial, selectedSource, showCraftedOnly, showCraftMaterialsOnly, priceRange.min, priceRange.max, sortBy]);
 
   // Infinite scroll: load next pages when sentinel appears (with current filters)
