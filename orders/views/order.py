@@ -68,15 +68,25 @@ class OrderListCreateView(generics.ListCreateAPIView):
                         current_prices = fetch_min_listing_prices(nft_item.product_code)
                         if current_prices:
                             _, _, current_price_brl = current_prices
-                            # Atualiza o preço no item_data com o preço recalculado
-                            item_data["unit_price"] = current_price_brl
+                            # Arredonda para 2 casas decimais (igual ao last_price_brl do modelo)
+                            # Isso garante que o preço seja exatamente o mesmo exibido no frontend
+                            from decimal import ROUND_HALF_UP
+
+                            current_price_brl_rounded = current_price_brl.quantize(
+                                Decimal("0.01"), rounding=ROUND_HALF_UP
+                            )
+                            # Atualiza o preço no item_data com o preço recalculado e arredondado
+                            item_data["unit_price"] = current_price_brl_rounded
 
                             # Log se houver diferença significativa (mais de 1%)
-                            price_diff = abs(float(current_price_brl - original_price))
+                            # Usa o valor arredondado para comparação
+                            price_diff = abs(
+                                float(current_price_brl_rounded - original_price)
+                            )
                             if price_diff > float(original_price * Decimal("0.01")):
                                 logger.warning(
                                     f"Preço recalculado para NFT {nft_item.product_code}: "
-                                    f"Original: R$ {original_price}, Atualizado: R$ {current_price_brl}, "
+                                    f"Original: R$ {original_price}, Atualizado: R$ {current_price_brl_rounded}, "
                                     f"Diferença: R$ {price_diff:.2f}"
                                 )
                         else:
