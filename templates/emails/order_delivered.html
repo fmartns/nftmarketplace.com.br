@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido Entregue</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #3b82f6;
+        }
+        .header h1 {
+            color: #3b82f6;
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .order-info {
+            background-color: #eff6ff;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #3b82f6;
+        }
+        .order-info h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .items-list {
+            margin: 20px 0;
+        }
+        .item {
+            padding: 10px;
+            background-color: #f9f9f9;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #3b82f6;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #3b82f6;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📦 Pedido Entregue!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Olá <strong>{{ user.first_name|default:user.username }}</strong>,</p>
+            
+            <p>Ótimas notícias! Seu pedido foi entregue com sucesso. Esperamos que você esteja satisfeito com sua compra!</p>
+            
+            <div class="order-info">
+                <h2>Detalhes do Pedido</h2>
+                <div class="info-row">
+                    <span class="info-label">Número do Pedido:</span>
+                    <span class="info-value"><strong>{{ order_id }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Data de Entrega:</span>
+                    <span class="info-value">{{ delivered_at|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value" style="color: #3b82f6; font-weight: bold;">Entregue</span>
+                </div>
+            </div>
+            
+            <div class="items-list">
+                <h3>Itens Entregues:</h3>
+                {% for item in items %}
+                <div class="item">
+                    <strong>{{ item.item.name|default:item.item }}</strong><br>
+                    Quantidade: {{ item.quantity }}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <p style="text-align: center; background-color: #eff6ff; padding: 15px; border-radius: 5px;">
+                <strong>🎉 Seu pedido está completo!</strong><br>
+                Obrigado por escolher nossa plataforma. Esperamos vê-lo novamente em breve!
+            </p>
+            
+            <p style="text-align: center;">
+                <a href="{{ site_url }}/pedidos" class="button">Ver Meus Pedidos</a>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>Se você tiver alguma dúvida ou problema, entre em contato conosco através do suporte.</p>
+        </div>
+    </div>
+</body>
+</html>

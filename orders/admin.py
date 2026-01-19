@@ -179,10 +179,14 @@ class OrderAdmin(admin.ModelAdmin):
 
     def mark_as_delivered(self, request, queryset):
         """Marca pedidos como entregues"""
+        from .emails import send_order_delivered_email
+
         count = 0
         for order in queryset:
             if not order.delivered:
                 order.mark_as_delivered(request.user)
+                # Envia email de pedido entregue
+                send_order_delivered_email(order)
                 count += 1
         self.message_user(
             request,

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido Cancelado</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #ef4444;
+        }
+        .header h1 {
+            color: #ef4444;
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .order-info {
+            background-color: #fef2f2;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ef4444;
+        }
+        .order-info h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .items-list {
+            margin: 20px 0;
+        }
+        .item {
+            padding: 10px;
+            background-color: #f9f9f9;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #ef4444;
+        }
+        .total {
+            background-color: #fef2f2;
+            color: #ef4444;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 20px 0;
+            border: 2px solid #ef4444;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #FFE000;
+            color: #000;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>❌ Pedido Cancelado</h1>
+        </div>
+        
+        <div class="content">
+            <p>Olá <strong>{{ user.first_name|default:user.username }}</strong>,</p>
+            
+            <p>Infelizmente, seu pedido foi cancelado automaticamente porque o pagamento não foi realizado dentro do prazo estipulado.</p>
+            
+            <div class="order-info">
+                <h2>Detalhes do Pedido Cancelado</h2>
+                <div class="info-row">
+                    <span class="info-label">Número do Pedido:</span>
+                    <span class="info-value"><strong>{{ order_id }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Motivo:</span>
+                    <span class="info-value">{{ reason }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value" style="color: #ef4444; font-weight: bold;">Cancelado</span>
+                </div>
+            </div>
+            
+            <div class="items-list">
+                <h3>Itens do Pedido:</h3>
+                {% for item in items %}
+                <div class="item">
+                    <strong>{{ item.item.name|default:item.item }}</strong><br>
+                    Quantidade: {{ item.quantity }}<br>
+                    Preço unitário: R$ {{ item.unit_price|floatformat:2 }}<br>
+                    Subtotal: R$ {{ item.total_price|floatformat:2 }}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="total">
+                Valor Total: R$ {{ total|floatformat:2 }}
+            </div>
+            
+            <p style="text-align: center; background-color: #fef2f2; padding: 15px; border-radius: 5px;">
+                <strong>💡 Não se preocupe!</strong><br>
+                Você pode criar um novo pedido a qualquer momento. Os itens ainda estão disponíveis.
+            </p>
+            
+            <p style="text-align: center;">
+                <a href="{{ site_url }}" class="button">Fazer Nova Compra</a>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>Se você realizou o pagamento e ainda assim recebeu este email, entre em contato conosco imediatamente.</p>
+        </div>
+    </div>
+</body>
+</html>

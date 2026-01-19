@@ -263,6 +263,9 @@ SPECTACULAR_SETTINGS = {
 # Email configuration
 # See: https://docs.djangoproject.com/en/5.2/topics/email/
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
+ADMIN_EMAIL = os.getenv(
+    "ADMIN_EMAIL", DEFAULT_FROM_EMAIL
+)  # Email para notificações de admin
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
@@ -325,6 +328,14 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0 * 30.0,  # Executa a cada 30 minutos
         "options": {
             "expires": 60 * 60,  # Expira em 1 hora se não executar
+        },
+    },
+    # Sincronização de novos NFTs da SecureHabbo - Todo dia às 2h da manhã
+    "sync-securehabbo-nfts-2am": {
+        "task": "nft.tasks.sync_new_nfts_from_securehabbo_task",
+        "schedule": crontab(hour=2, minute=0),  # Executa diariamente às 2h00
+        "options": {
+            "expires": 60 * 60 * 4,  # Expira em 4 horas se não executar
         },
     },
 }
