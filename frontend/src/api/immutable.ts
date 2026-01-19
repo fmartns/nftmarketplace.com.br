@@ -288,25 +288,30 @@ export async function fetchImmutableListings(productCode: string): Promise<Immut
   const decimals = Number(o?.buy?.data?.decimals ?? (buyType === 'ETH' ? 18 : 6));
     let eth = 0, usd = 0, brl = 0;
     let ethRaw = 0; // pre-markup ETH for sanity checks
+    
     if (buyType === 'ETH') {
-      eth = weiToEth(q);
-      ethRaw = eth;
-      // Single-step conversion ETH -> BRL, plus USD for completeness
-      brl = +(eth * rates.eth_usd * rates.usd_brl).toFixed(2);
-      usd = +(eth * rates.eth_usd).toFixed(2);
+      ethRaw = weiToEth(q);
+      // Calcular preços e arredondar (igual ao backend: quantize antes de aplicar markup)
+      const usdPre = +(ethRaw * rates.eth_usd).toFixed(2);
+      const brlPre = +(usdPre * rates.usd_brl).toFixed(2);
+      // Sanity fallback: se ETH é significativo mas BRL parece muito baixo
+      let brlPreFinal = brlPre;
+      if (ethRaw > 0.01 && brlPre < 10) {
+        const brlFb = ethRaw * 4713.59 * 5.42;
+        brlPreFinal = +brlFb.toFixed(2);
+      }
+      // Aplicar markup DEPOIS de arredondar (igual ao backend)
+      eth = +(ethRaw * markupMultiplier).toFixed(8);
+      usd = +(usdPre * markupMultiplier).toFixed(2);
+      brl = +(brlPreFinal * markupMultiplier).toFixed(2);
     } else if (buyType === 'ERC20' && decimals === 6) {
-      usd = +ercAmount(q, 6).toFixed(2);
+      // Calcular preços e arredondar (igual ao backend: quantize antes de aplicar markup)
+      const usdPre = +ercAmount(q, 6).toFixed(2);
+      const brlPre = +(usdPre * rates.usd_brl).toFixed(2);
+      // Aplicar markup DEPOIS de arredondar (igual ao backend)
+      usd = +(usdPre * markupMultiplier).toFixed(2);
       eth = +(usd / rates.eth_usd).toFixed(8);
-      brl = +(usd * rates.usd_brl).toFixed(2);
-    }
-    // Apply configured markup instead of hardcoded 30%
-    eth = +(eth * markupMultiplier).toFixed(8);
-    usd = +(usd * markupMultiplier).toFixed(2);
-    brl = +(brl * markupMultiplier).toFixed(2);
-    // Sanity fallback for implausibly low BRL values on ETH orders
-    if (buyType === 'ETH' && ethRaw > 0.01 && brl < 10) {
-      const brlNoMarkup = ethRaw * 4713.59 * 5.42;
-      brl = +(brlNoMarkup * markupMultiplier).toFixed(2);
+      brl = +(brlPre * markupMultiplier).toFixed(2);
     }
     const quantity = 1; // generally 1 per unique NFT
     const seller = o?.user || o?.seller || null;

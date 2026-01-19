@@ -152,7 +152,6 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
   useEffect(() => {
     let mounted = true;
     setLoadingPrice(true);
-    setListings([]);
     
     const withTimeout = <T,>(p: Promise<T>, ms = 4000): Promise<T> =>
       Promise.race([
@@ -168,7 +167,7 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
         const listingsPromise = fetchImmutableListings(productCode);
         const backendPromise = fetchNFTByProductCode(productCode).catch(() => null);
 
-        // 2) Carregar listagens
+        // 2) Carregar listagens (usando mesma lógica de markup do backend)
         let ls: ImmutableListingView[] = [];
         try {
           const lsRaw = await withTimeout(listingsPromise, 5000);
@@ -195,19 +194,13 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
               if (isFinite(avgNum) && avgNum > 0) setSevenDayAvgBRL(avgNum);
             }
 
-            // Atualizar preço no item
-            const isPlausible = (v: number | null) => v != null && isFinite(v) && v >= 10;
-            if (isPlausible(backendItemPriceBRL)) {
+            // Atualizar preço no item - usar sempre o preço do backend
+            // O backend já calcula o menor preço da Immutable com markup aplicado
+            if (backendItemPriceBRL != null && isFinite(backendItemPriceBRL) && backendItemPriceBRL >= 0) {
               setItem(prev => {
                 if (!prev) return prev;
-                const current = Number(prev.last_price_brl || 0);
-                const lowestListing = ls.length ? Math.min(...ls.map(l => l.price_brl)) : Number.POSITIVE_INFINITY;
-                const lowest = Math.min(
-                  current > 0 ? current : Number.POSITIVE_INFINITY,
-                  backendItemPriceBRL as number,
-                  lowestListing
-                );
-                return { ...prev, last_price_brl: isFinite(lowest) ? lowest : backendItemPriceBRL! };
+                // Usar sempre o preço do backend, que já vem com o menor preço da Immutable + markup
+                return { ...prev, last_price_brl: backendItemPriceBRL };
               });
             }
           }
@@ -252,7 +245,7 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
   }, [listings]);
 
   const chartData = useMemo(() => {
-    // Base do gráfico alinhada ao preço exibido (prioriza listagens quando existem)
+    // Base do gráfico alinhada ao preço exibido (prioriza menor listagem se existir, senão usa backend)
     const itemBRL = typeof item?.last_price_brl === 'number' ? item.last_price_brl : null;
     const listBRL = lowestListingBRL ?? null;
     const base = (listBRL != null) ? listBRL : (itemBRL ?? 0);
@@ -278,11 +271,11 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
   }, [chartData, sevenDayAvgBRL]);
 
   const displayPriceBRL = useMemo(() => {
-    // Preferir SEMPRE a menor listagem quando existir; usar backend apenas como fallback
-    if (lowestListingBRL != null) return lowestListingBRL;
+    // Usar sempre o preço do backend (que já vem com o menor preço da Immutable + markup aplicado)
+    // Isso garante consistência com o card que também usa last_price_brl do backend
     const itemBRL = typeof item?.last_price_brl === 'number' ? item.last_price_brl : null;
     return itemBRL ?? 0;
-  }, [lowestListingBRL, item]);
+  }, [item]);
 
   const whatsappUrl = useMemo(() => {
     const phone = '5511987120592'; // +55 11 98712-0592

@@ -4,7 +4,7 @@ from celery import shared_task
 from django.utils import timezone
 from django.db import transaction
 from .models import NFTItem
-from .services import fetch_item_from_immutable, ImmutableAPIError
+from .services import ImmutableAPIError
 from random import random
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,20 @@ def update_nft_price(self, product_code):
 
         # Busca dados atualizados da Immutable
         try:
+            from .services import fetch_item_from_immutable, fetch_min_listing_prices
+
+            # Buscar dados básicos do item
             mapped_data, _ = fetch_item_from_immutable(product_code)
+
+            # Buscar o menor preço da Immutable (com markup aplicado)
+            min_prices = fetch_min_listing_prices(product_code)
+            if min_prices is not None:
+                pe, pu, pb = min_prices
+                # Sobrescrever preços com o menor valor da Immutable
+                mapped_data["last_price_eth"] = pe
+                mapped_data["last_price_usd"] = pu
+                mapped_data["last_price_brl"] = pb
+
         except ImmutableAPIError as e:
             logger.error("Erro da API Immutable para %s: %s", product_code, e)
             raise Exception(f"Erro da API Immutable: {e}") from e
