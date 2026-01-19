@@ -408,7 +408,7 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
   return (
     <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 lg:px-8">
-        <div className="flex h-20 items-center justify-between">
+        <div className="flex h-28 items-center justify-between">
           {/* Logo */}
           <button 
             className="flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0"
@@ -417,7 +417,7 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
             <img 
               src={logoImage} 
               alt="NFT Marketplace" 
-              className="h-11 max-w-[190px] w-auto object-contain"
+              className="h-20 max-w-[350px] w-auto object-contain"
             />
           </button>
 
