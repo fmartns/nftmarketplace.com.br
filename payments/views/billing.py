@@ -160,12 +160,16 @@ class BillingCreateView(APIView):
                 item_description = item.item.description_pt_br
 
             # Converte o preço para centavos usando Decimal para evitar problemas de precisão
+            # O unit_price já está arredondado para 2 casas decimais quando o pedido é criado
+            # Então apenas multiplicamos por 100 e convertemos para inteiro
             unit_price_decimal = Decimal(str(item.unit_price))
-            price_cents = int(
-                (unit_price_decimal * Decimal("100")).quantize(
-                    Decimal("1"), rounding=ROUND_HALF_UP
-                )
+            # Garante que está com 2 casas decimais (como exibido no frontend)
+            unit_price_rounded = unit_price_decimal.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
             )
+            # Converte para centavos: multiplica por 100 e converte para int
+            # Como já está arredondado para 2 casas, a multiplicação por 100 sempre dá um número inteiro
+            price_cents = int(unit_price_rounded * Decimal("100"))
 
             # Validação: garantir que o preço seja válido
             if price_cents < 0:
@@ -188,12 +192,16 @@ class BillingCreateView(APIView):
 
         if not products:
             # Converte o preço para centavos usando Decimal para evitar problemas de precisão
+            # O order.total já está arredondado para 2 casas decimais
+            # Então apenas multiplicamos por 100 e convertemos para inteiro
             total_decimal = Decimal(str(order.total))
-            price_cents = int(
-                (total_decimal * Decimal("100")).quantize(
-                    Decimal("1"), rounding=ROUND_HALF_UP
-                )
+            # Garante que está com 2 casas decimais
+            total_rounded = total_decimal.quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
             )
+            # Converte para centavos: multiplica por 100 e converte para int
+            # Como já está arredondado para 2 casas, a multiplicação por 100 sempre dá um número inteiro
+            price_cents = int(total_rounded * Decimal("100"))
 
             products = [
                 {
