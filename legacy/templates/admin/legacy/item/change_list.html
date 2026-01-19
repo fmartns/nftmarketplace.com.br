@@ -8,4 +8,9 @@
       {% trans 'Importar via JSON' %}
     </a>
   </li>
+  <li>
+    <a href="{% url 'admin:legacy_item_download_links' %}" class="addlink" title="{% trans 'Download Legacy Links' %}" style="background-color: #28a745; color: white;">
+      📥 {% trans 'Download Links TXT' %}
+    </a>
+  </li>
 {% endblock %}
