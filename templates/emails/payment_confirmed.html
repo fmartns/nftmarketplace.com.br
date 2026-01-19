@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagamento Confirmado</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #10b981;
+        }
+        .header h1 {
+            color: #10b981;
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            margin-bottom: 30px;
+        }
+        .order-info {
+            background-color: #f0fdf4;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #10b981;
+        }
+        .order-info h2 {
+            color: #333;
+            margin-top: 0;
+            font-size: 20px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #666;
+        }
+        .info-value {
+            color: #333;
+        }
+        .items-list {
+            margin: 20px 0;
+        }
+        .item {
+            padding: 10px;
+            background-color: #f9f9f9;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #10b981;
+        }
+        .total {
+            background-color: #10b981;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #10b981;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💳 Pagamento Confirmado!</h1>
+        </div>
+        
+        <div class="content">
+            <p>Olá <strong>{{ user.first_name|default:user.username }}</strong>,</p>
+            
+            <p>Ótimas notícias! Seu pagamento foi confirmado com sucesso. Seu pedido está sendo processado e em breve será entregue.</p>
+            
+            <div class="order-info">
+                <h2>Detalhes do Pedido</h2>
+                <div class="info-row">
+                    <span class="info-label">Número do Pedido:</span>
+                    <span class="info-value"><strong>{{ order_id }}</strong></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Data do Pagamento:</span>
+                    <span class="info-value">{{ paid_at|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span class="info-value" style="color: #10b981; font-weight: bold;">Pago</span>
+                </div>
+            </div>
+            
+            <div class="items-list">
+                <h3>Itens do Pedido:</h3>
+                {% for item in items %}
+                <div class="item">
+                    <strong>{{ item.item.name|default:item.item }}</strong><br>
+                    Quantidade: {{ item.quantity }}<br>
+                    Preço unitário: R$ {{ item.unit_price|floatformat:2 }}<br>
+                    Subtotal: R$ {{ item.total_price|floatformat:2 }}
+                </div>
+                {% endfor %}
+            </div>
+            
+            <div class="total">
+                Total Pago: R$ {{ total|floatformat:2 }}
+            </div>
+            
+            <p style="text-align: center; background-color: #f0fdf4; padding: 15px; border-radius: 5px;">
+                <strong>✅ Seu pedido será processado e entregue em breve!</strong><br>
+                Você receberá uma notificação quando o pedido for entregue.
+            </p>
+            
+            <p style="text-align: center;">
+                <a href="{{ site_url }}/pedidos" class="button">Acompanhar Pedido</a>
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>Este é um email automático, por favor não responda.</p>
+            <p>Se você não realizou este pagamento, entre em contato conosco imediatamente.</p>
+        </div>
+    </div>
+</body>
+</html>

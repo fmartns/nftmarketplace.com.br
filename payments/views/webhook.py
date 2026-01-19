@@ -320,6 +320,15 @@ def AbacatePayWebhookView(request):
                 billing.order.save()
                 logger.info(f"Pedido {billing.order.order_id} marcado como pago")
 
+                # Envia emails de pagamento confirmado
+                from orders.emails import (
+                    send_payment_confirmed_email,
+                    send_payment_confirmed_admin_email,
+                )
+
+                send_payment_confirmed_email(billing.order)
+                send_payment_confirmed_admin_email(billing.order)
+
             payment_obj = billing.payments.first()
             if not payment_obj:
                 payment_amount = (

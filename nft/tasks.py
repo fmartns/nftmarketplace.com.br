@@ -279,3 +279,35 @@ def cleanup_old_price_updates():
     except Exception as e:
         logger.error("Erro na limpeza: %s", str(e))
         return {"status": "failed", "error": str(e)}
+
+
+@shared_task
+def sync_new_nfts_from_securehabbo_task():
+    """
+    Task para sincronizar novos NFTs da API securehabbo.com
+    Verifica itens que ainda não estão cadastrados e os cadastra.
+    Esta task é executada durante a madrugada e pode ser chamada manualmente.
+    """
+    try:
+        from .services_securehabbo import sync_new_nfts_from_securehabbo
+
+        logger.info("Iniciando sincronização de novos NFTs da securehabbo")
+        result = sync_new_nfts_from_securehabbo()
+
+        logger.info(
+            f"Sincronização concluída: {result.get('new_items', 0)} novos itens, "
+            f"{result.get('updated_items', 0)} atualizados"
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Erro na sincronização securehabbo: {e}", exc_info=True)
+        return {
+            "status": "error",
+            "message": str(e),
+            "total_api": 0,
+            "new_items": 0,
+            "updated_items": 0,
+            "errors": [str(e)],
+        }

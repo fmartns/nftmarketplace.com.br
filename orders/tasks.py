@@ -35,6 +35,12 @@ def check_and_cancel_order(order_id: int):
                         f"Pedido {order.order_id} cancelado automaticamente "
                         f"(criado em {order.created_at}, não pago em 5 minutos)"
                     )
+                    # Envia email de pedido cancelado
+                    from .emails import send_order_cancelled_email
+
+                    send_order_cancelled_email(
+                        order, reason="Tempo esgotado para pagamento (5 minutos)"
+                    )
                     return {
                         "status": "cancelled",
                         "order_id": order.order_id,
@@ -126,6 +132,13 @@ def cancel_unpaid_orders_security_check():
                     logger.info(
                         f"Pedido {order.order_id} cancelado pela rotina de segurança "
                         f"(criado em {order.created_at}, não pago em 5 minutos)"
+                    )
+                    # Envia email de pedido cancelado
+                    from .emails import send_order_cancelled_email
+
+                    send_order_cancelled_email(
+                        order,
+                        reason="Tempo esgotado para pagamento (verificação de segurança)",
                     )
                 else:
                     logger.warning(

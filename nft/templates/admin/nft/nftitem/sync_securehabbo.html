@@ -1,0 +1,52 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:nft_nftitem_changelist' %}">{% trans 'NFT Items' %}</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<div style="margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 5px;">
+    <h2>📦 Sincronizar NFTs da SecureHabbo</h2>
+    <p>Esta rotina verifica a API <strong>securehabbo.com/market/items</strong> e cadastra automaticamente os NFTs que ainda não estão no sistema.</p>
+    
+    <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 3px;">
+        <strong>⚠️ Atenção:</strong>
+        <ul style="margin: 10px 0 0 20px;">
+            <li>A sincronização pode levar alguns minutos dependendo da quantidade de itens</li>
+            <li>Itens já cadastrados terão seus preços atualizados</li>
+            <li>Novos itens serão criados automaticamente com suas coleções</li>
+        </ul>
+    </div>
+
+    <form method="post" style="margin-top: 30px;">
+        {% csrf_token %}
+        <div style="margin: 20px 0;">
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                <input type="checkbox" name="async" value="true" style="width: 20px; height: 20px;">
+                <span><strong>Executar em background (assíncrono)</strong> - Recomendado para grandes volumes</span>
+            </label>
+            <p style="margin: 5px 0 0 30px; color: #666; font-size: 12px;">
+                Se marcado, a sincronização será executada via Celery em background. Caso contrário, será executada de forma síncrona.
+            </p>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <button type="submit" style="padding: 12px 30px; background-color: #417690; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                🚀 Iniciar Sincronização
+            </button>
+            <a href="{% url 'admin:nft_nftitem_changelist' %}" style="margin-left: 10px; padding: 12px 30px; background-color: #ba2121; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">
+                Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

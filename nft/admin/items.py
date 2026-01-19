@@ -74,6 +74,11 @@ class NFTItemAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.get_nfts_api),
                 name="nft_nftitem_get_nfts_api",
             ),
+            path(
+                "sync-securehabbo/",
+                self.admin_site.admin_view(self.sync_securehabbo_view),
+                name="nft_nftitem_sync_securehabbo",
+            ),
         ]
         return custom + urls
 
@@ -432,6 +437,66 @@ class NFTItemAdmin(admin.ModelAdmin):
                 messages.error(request, f"Erro: {str(e)}")
 
         return render(request, "admin/nft/nftitem/generate_promo_image.html", context)
+
+    def sync_securehabbo_view(self, request):
+        """
+        View para sincronizar novos NFTs da API securehabbo.com
+        """
+        if not request.user.is_staff:
+            messages.error(request, "Acesso negado.")
+            return redirect("admin:nft_nftitem_changelist")
+
+        if request.method == "POST":
+            try:
+                from ..services_securehabbo import sync_new_nfts_from_securehabbo
+                from ..tasks import sync_new_nfts_from_securehabbo_task
+
+                # Verificar se deve executar de forma assíncrona (Celery)
+                async_mode = request.POST.get("async", "false") == "true"
+
+                if async_mode:
+                    # Executar via Celery (assíncrono)
+                    task = sync_new_nfts_from_securehabbo_task.delay()
+                    messages.success(
+                        request,
+                        f"Sincronização iniciada em background. Task ID: {task.id}",
+                    )
+                else:
+                    # Executar de forma síncrona
+                    result = sync_new_nfts_from_securehabbo()
+
+                    if result["status"] == "success":
+                        messages.success(
+                            request,
+                            f"Sincronização concluída! "
+                            f"{result['new_items']} novos itens cadastrados, "
+                            f"{result['updated_items']} itens atualizados.",
+                        )
+                        if result.get("errors"):
+                            messages.warning(
+                                request,
+                                f"{len(result['errors'])} erro(s) durante o processamento.",
+                            )
+                    else:
+                        messages.error(
+                            request,
+                            f"Erro na sincronização: {result.get('message', 'Erro desconhecido')}",
+                        )
+
+            except Exception as e:
+                messages.error(request, f"Erro ao executar sincronização: {str(e)}")
+
+            return redirect("admin:nft_nftitem_changelist")
+
+        # GET - mostrar página de confirmação
+        context = {**self.admin_site.each_context(request)}
+        context.update(
+            {
+                "opts": self.model._meta,
+                "title": "Sincronizar NFTs da SecureHabbo",
+            }
+        )
+        return render(request, "admin/nft/nftitem/sync_securehabbo.html", context)
 
     def _generate_promo_image(self, nfts):
         """Gera a imagem promocional usando o template original"""

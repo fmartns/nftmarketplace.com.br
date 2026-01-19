@@ -167,6 +167,11 @@ class OrderListCreateView(generics.ListCreateAPIView):
             countdown=60 * 5,  # Executa após 5 minutos (300 segundos)
         )
 
+        # Envia email de pedido criado
+        from ..emails import send_order_created_email
+
+        send_order_created_email(order)
+
         # Pagamento será processado via AbacatePay (criar billing separadamente)
 
         # Retorna o pedido criado
