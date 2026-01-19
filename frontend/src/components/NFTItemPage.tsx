@@ -12,6 +12,7 @@ import { ShareModal } from './ShareModal';
 import { fetchUserProfile, User } from '@/api/accounts';
 import { createOrder } from '@/api/orders';
 import { createBilling } from '@/api/payments';
+import { useSEO } from '@/hooks/useSEO';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -276,6 +277,36 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
     const itemBRL = typeof item?.last_price_brl === 'number' ? item.last_price_brl : null;
     return itemBRL ?? 0;
   }, [item]);
+
+  // SEO para página do produto NFT
+  const seoTitle = useMemo(() => {
+    if (item?.name) return `${item.name} - NFT Marketplace`;
+    if (productCode) return `NFT ${productCode} - NFT Marketplace`;
+    return undefined;
+  }, [item?.name, productCode]);
+
+  const seoDescription = useMemo(() => {
+    if (item?.name) {
+      const priceText = displayPriceBRL > 0 ? `Preço: R$ ${formatBRL(displayPriceBRL)}.` : '';
+      const attributesText = item.attributes?.length 
+        ? `Atributos: ${item.attributes.map(a => `${a.trait}: ${a.value}`).join(', ')}.`
+        : '';
+      return `Compre ${item.name} no NFT Marketplace. ${priceText} ${attributesText}`.trim();
+    }
+    if (productCode) {
+      return `NFT ${productCode} disponível no NFT Marketplace. Explore e compre NFTs únicos do Habbo.`;
+    }
+    return undefined;
+  }, [item?.name, item?.attributes, productCode, displayPriceBRL]);
+
+  useSEO({
+    title: seoTitle,
+    description: seoDescription,
+    image: item?.image_url || undefined,
+    url: typeof window !== 'undefined' ? window.location.href : undefined,
+    type: 'product',
+    productImage: item?.image_url || undefined, // Usar imagem do produto como favicon
+  });
 
   const whatsappUrl = useMemo(() => {
     const phone = '5511987120592'; // +55 11 98712-0592
