@@ -179,14 +179,41 @@ const allItems = [
 ];
 
 export function AllItemsMarketplace() {
-  const [selectedCollections, setSelectedCollections] = useState<string[]>([]); // Múltiplas coleções
+  // Chave única para o sessionStorage
+  const storageKey = 'all_items_marketplace_state';
+
+  // Função para carregar estado do sessionStorage
+  const loadState = () => {
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Erro ao carregar estado do sessionStorage:', e);
+    }
+    return null;
+  };
+
+  // Função para salvar estado no sessionStorage
+  const saveState = (state: any) => {
+    try {
+      sessionStorage.setItem(storageKey, JSON.stringify(state));
+    } catch (e) {
+      console.warn('Erro ao salvar estado no sessionStorage:', e);
+    }
+  };
+
+  // Carregar estado inicial do sessionStorage
+  const savedState = loadState();
+  const [selectedCollections, setSelectedCollections] = useState<string[]>(savedState?.selectedCollections || []); // Múltiplas coleções
   const [collections, setCollections] = useState<NftCollection[]>([]);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState('popular');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [priceRange, setPriceRange] = useState({ min: '', max: '' });
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(savedState?.viewMode || 'grid');
+  const [sortBy, setSortBy] = useState(savedState?.sortBy || 'popular');
+  const [searchQuery, setSearchQuery] = useState(savedState?.searchQuery || '');
+  const [priceRange, setPriceRange] = useState(savedState?.priceRange || { min: '', max: '' });
+  const [selectedItems, setSelectedItems] = useState<string[]>(savedState?.selectedItems || []);
+  const [showSelectedOnly, setShowSelectedOnly] = useState(savedState?.showSelectedOnly || false);
   const [selectedItemForModal, setSelectedItemForModal] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [items, setItems] = useState<NFTItem[]>([]);
@@ -206,6 +233,19 @@ export function AllItemsMarketplace() {
     });
     return () => { mounted = false; };
   }, []);
+
+  // Salvar estado no sessionStorage sempre que os filtros mudarem
+  useEffect(() => {
+    saveState({
+      selectedCollections,
+      viewMode,
+      sortBy,
+      searchQuery,
+      priceRange,
+      selectedItems,
+      showSelectedOnly,
+    });
+  }, [selectedCollections, viewMode, sortBy, searchQuery, priceRange, selectedItems, showSelectedOnly]);
 
   // Reset paginação quando filtros mudarem
   useEffect(() => {
@@ -288,6 +328,17 @@ export function AllItemsMarketplace() {
   };
 
   const goToItem = (item: any) => {
+    // Salvar estado antes de navegar
+    saveState({
+      selectedCollections,
+      viewMode,
+      sortBy,
+      searchQuery,
+      priceRange,
+      selectedItems,
+      showSelectedOnly,
+    });
+    
     const slug = (item as any).collection_slug;
     const code = (item as any).product_code;
     if (slug && code) {
@@ -304,6 +355,8 @@ export function AllItemsMarketplace() {
     setSelectedCollections([]);
     setPriceRange({ min: '', max: '' });
     setSearchQuery('');
+    // Limpar sessionStorage também
+    sessionStorage.removeItem(storageKey);
   };
 
   const handleCollectionToggle = (collectionSlug: string) => {
