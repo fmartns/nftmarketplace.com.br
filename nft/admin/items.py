@@ -79,6 +79,11 @@ class NFTItemAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.sync_securehabbo_view),
                 name="nft_nftitem_sync_securehabbo",
             ),
+            path(
+                "download-links/",
+                self.admin_site.admin_view(self.download_links_view),
+                name="nft_nftitem_download_links",
+            ),
         ]
         return custom + urls
 
@@ -497,6 +502,36 @@ class NFTItemAdmin(admin.ModelAdmin):
             }
         )
         return render(request, "admin/nft/nftitem/sync_securehabbo.html", context)
+
+    def download_links_view(self, request):
+        """
+        View para fazer download de um arquivo TXT com links de todos os NFTs
+        """
+        if not request.user.is_staff:
+            messages.error(request, "Acesso negado.")
+            return redirect("admin:nft_nftitem_changelist")
+
+        # Buscar todos os NFTs que têm product_code
+        nfts = (
+            NFTItem.objects.filter(product_code__isnull=False)
+            .exclude(product_code="")
+            .order_by("product_code")
+        )
+
+        # Gerar conteúdo do arquivo TXT
+        lines = []
+        base_url = "https://www.nftmarketplace.com.br/habbo-furni"
+
+        for nft in nfts:
+            if nft.product_code:
+                link = f"{base_url}/{nft.product_code}"
+                lines.append(link)
+
+        # Criar resposta HTTP com o arquivo TXT
+        content = "\n".join(lines)
+        response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="nft_links.txt"'
+        return response
 
     def _generate_promo_image(self, nfts):
         """Gera a imagem promocional usando o template original"""

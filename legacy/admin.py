@@ -4,6 +4,7 @@ from django import forms
 from django.shortcuts import render, redirect
 from django.urls import path
 from django.db import transaction
+from django.http import HttpResponse
 from decimal import Decimal
 import json
 from .models import Item
@@ -288,6 +289,11 @@ class ItemAdmin(admin.ModelAdmin):
                 "import-json/",
                 self.admin_site.admin_view(self.import_json_view),
                 name="legacy_item_import_json",
+            ),
+            path(
+                "download-links/",
+                self.admin_site.admin_view(self.download_links_view),
+                name="legacy_item_download_links",
             ),
         ]
         return custom + urls
@@ -595,3 +601,31 @@ class ItemAdmin(admin.ModelAdmin):
             )
 
     refresh_from_api.short_description = "Atualizar itens selecionados da API externa"
+
+    def download_links_view(self, request):
+        """
+        View para fazer download de um arquivo TXT com links de todos os itens Legacy
+        """
+        if not request.user.is_staff:
+            messages.error(request, "Acesso negado.")
+            return redirect("admin:legacy_item_changelist")
+
+        # Buscar todos os itens Legacy que têm slug
+        items = (
+            Item.objects.filter(slug__isnull=False).exclude(slug="").order_by("slug")
+        )
+
+        # Gerar conteúdo do arquivo TXT
+        lines = []
+        base_url = "https://www.nftmarketplace.com.br/legacy"
+
+        for item in items:
+            if item.slug:
+                link = f"{base_url}/{item.slug}"
+                lines.append(link)
+
+        # Criar resposta HTTP com o arquivo TXT
+        content = "\n".join(lines)
+        response = HttpResponse(content, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="legacy_links.txt"'
+        return response
