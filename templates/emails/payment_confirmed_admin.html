@@ -3,169 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Novo Pagamento Confirmado</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f59e0b;
-            background-color: #fef3c7;
-            padding: 20px;
-            border-radius: 5px;
-        }
-        .header h1 {
-            color: #f59e0b;
-            margin: 0;
-            font-size: 28px;
-        }
-        .content {
-            margin-bottom: 30px;
-        }
-        .order-info {
-            background-color: #fef3c7;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border-left: 4px solid #f59e0b;
-        }
-        .order-info h2 {
-            color: #333;
-            margin-top: 0;
-            font-size: 20px;
-        }
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        .info-label {
-            font-weight: bold;
-            color: #666;
-        }
-        .info-value {
-            color: #333;
-        }
-        .items-list {
-            margin: 20px 0;
-        }
-        .item {
-            padding: 10px;
-            background-color: #f9f9f9;
-            margin: 10px 0;
-            border-radius: 5px;
-            border-left: 4px solid #f59e0b;
-        }
-        .total {
-            background-color: #f59e0b;
-            color: #000;
-            padding: 15px;
-            border-radius: 5px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            margin: 20px 0;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 30px;
-            background-color: #f59e0b;
-            color: #000;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #666;
-            font-size: 12px;
-        }
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Novo Pagamento Confirmado - NFT Marketplace</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {font-family: Arial, sans-serif !important;}
     </style>
+    <![endif]-->
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>⚠️ Novo Pagamento Confirmado</h1>
-        </div>
-        
-        <div class="content">
-            <p><strong>Administrador,</strong></p>
-            
-            <p>Um novo pagamento foi confirmado e requer sua atenção para processamento e entrega.</p>
-            
-            <div class="order-info">
-                <h2>Detalhes do Pedido</h2>
-                <div class="info-row">
-                    <span class="info-label">Número do Pedido:</span>
-                    <span class="info-value"><strong>{{ order_id }}</strong></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Cliente:</span>
-                    <span class="info-value">{{ user.username }} ({{ user.email }})</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Nome:</span>
-                    <span class="info-value">{{ user.first_name }} {{ user.last_name }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Data do Pagamento:</span>
-                    <span class="info-value">{{ paid_at|date:"d/m/Y H:i" }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status:</span>
-                    <span class="info-value" style="color: #10b981; font-weight: bold;">Pago</span>
-                </div>
-            </div>
-            
-            <div class="items-list">
-                <h3>Itens do Pedido:</h3>
-                {% for item in items %}
-                <div class="item">
-                    <strong>{{ item.item.name|default:item.item }}</strong><br>
-                    Quantidade: {{ item.quantity }}<br>
-                    Preço unitário: R$ {{ item.unit_price|floatformat:2 }}<br>
-                    Subtotal: R$ {{ item.total_price|floatformat:2 }}
-                </div>
-                {% endfor %}
-            </div>
-            
-            <div class="total">
-                Total Recebido: R$ {{ total|floatformat:2 }}
-            </div>
-            
-            <p style="text-align: center; background-color: #fef3c7; padding: 15px; border-radius: 5px;">
-                <strong>📦 Ação Necessária:</strong><br>
-                Processe e entregue este pedido o mais rápido possível.
-            </p>
-        </div>
-        
-        <div class="footer">
-            <p>Este é um email automático de notificação para administradores.</p>
-        </div>
-    </div>
+<body style="margin: 0; padding: 0; background-color: #0a0a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <!-- Wrapper Table -->
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0f; padding: 20px 0;">
+        <tr>
+            <td align="center" style="padding: 0;">
+                <!-- Main Container -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #1a1a2e; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 32px 24px; text-align: center;">
+                            <h1 style="margin: 0; color: #000000; font-size: 28px; font-weight: 700; line-height: 1.2;">Novo Pagamento Confirmado</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 32px 24px;">
+                            <p style="margin: 0 0 20px 0; color: #ffffff; font-size: 16px; line-height: 1.6;">
+                                <strong style="color: #f59e0b;">Administrador,</strong>
+                            </p>
+                            
+                            <p style="margin: 0 0 24px 0; color: #a1a1aa; font-size: 16px; line-height: 1.6;">
+                                Um novo pagamento foi confirmado e requer sua atenção para processamento e entrega.
+                            </p>
+                            
+                            <!-- Order Info Card -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #262640; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin: 24px 0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h2 style="margin: 0 0 16px 0; color: #f59e0b; font-size: 20px; font-weight: 600;">Detalhes do Pedido</h2>
+                                        
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Número do Pedido:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <strong style="color: #ffffff; font-size: 14px;">{{ order_id }}</strong>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Cliente:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #ffffff; font-size: 14px;">{{ user.username }} ({{ user.email }})</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Nome:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #ffffff; font-size: 14px;">{{ user.first_name }} {{ user.last_name }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Data do Pagamento:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #ffffff; font-size: 14px;">{{ paid_at|date:"d/m/Y H:i" }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Status:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0;">
+                                                    <span style="color: #10b981; font-size: 14px; font-weight: 600;">Pago</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Items List -->
+                            <h3 style="margin: 24px 0 16px 0; color: #ffffff; font-size: 18px; font-weight: 600;">Itens do Pedido:</h3>
+                            
+                            {% for item in items %}
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #262640; border-radius: 8px; border-left: 4px solid #f59e0b; margin-bottom: 12px;">
+                                <tr>
+                                    <td style="padding: 16px;">
+                                        <p style="margin: 0 0 8px 0; color: #ffffff; font-size: 16px; font-weight: 600;">{{ item.item.name|default:item.item }}</p>
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="padding: 4px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px;">Quantidade:</span>
+                                                    <span style="color: #ffffff; font-size: 14px; font-weight: 500; margin-left: 8px;">{{ item.quantity }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px;">Preço unitário:</span>
+                                                    <span style="color: #f59e0b; font-size: 14px; font-weight: 600; margin-left: 8px;">R$ {{ item.unit_price|floatformat:2 }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px;">Subtotal:</span>
+                                                    <span style="color: #ffffff; font-size: 14px; font-weight: 600; margin-left: 8px;">R$ {{ item.total_price|floatformat:2 }}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            {% endfor %}
+                            
+                            <!-- Total -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 8px; margin: 24px 0;">
+                                <tr>
+                                    <td style="padding: 20px; text-align: center;">
+                                        <p style="margin: 0; color: #000000; font-size: 24px; font-weight: 700;">Total Recebido: R$ {{ total|floatformat:2 }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Action Notice -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(245, 158, 11, 0.1); border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2); margin: 24px 0;">
+                                <tr>
+                                    <td style="padding: 16px; text-align: center;">
+                                        <p style="margin: 0; color: #f59e0b; font-size: 14px; font-weight: 600;">
+                                            <strong>Ação Necessária:</strong><br>
+                                            <span style="color: #a1a1aa; font-weight: 400; font-size: 13px; margin-top: 4px; display: block;">Processe e entregue este pedido o mais rápido possível.</span>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                            <p style="margin: 0; color: #a1a1aa; font-size: 12px; line-height: 1.5;">
+                                Este é um email automático de notificação para administradores.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

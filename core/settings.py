@@ -260,19 +260,95 @@ SPECTACULAR_SETTINGS = {
     "REDOC_DIST": "SIDECAR",
 }
 
-# Email configuration
+# Email configuration - Gmail SMTP
 # See: https://docs.djangoproject.com/en/5.2/topics/email/
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
-ADMIN_EMAIL = os.getenv(
-    "ADMIN_EMAIL", DEFAULT_FROM_EMAIL
-)  # Email para notificações de admin
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
+# Para usar Gmail, você precisa:
+# 1. Habilitar "Acesso a apps menos seguros" OU
+# 2. Usar uma "Senha de app" (recomendado): https://support.google.com/accounts/answer/185833
+# 3. Configurar as variáveis no .env:
+#    - EMAIL_HOST_USER=seu-email@gmail.com
+#    - EMAIL_HOST_PASSWORD=sua-senha-de-app
+#    - DEFAULT_FROM_EMAIL=seu-email@gmail.com
+#    - ADMIN_EMAIL=admin@example.com (opcional)
+
+# Verifica se as credenciais de email estão configuradas
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
+
+# Se não estiverem configuradas, usa console backend (para desenvolvimento)
+if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
+    # Usar print para garantir que apareça no console do Docker
+    print(
+        f"[EMAIL CONFIG] EMAIL_HOST_USER ou EMAIL_HOST_PASSWORD não configurados. "
+        f"EMAIL_HOST_USER={'vazio' if not EMAIL_HOST_USER else 'configurado'}, "
+        f"EMAIL_HOST_PASSWORD={'vazio' if not EMAIL_HOST_PASSWORD else 'configurado'}. "
+        f"Usando console backend para emails (emails serão exibidos no console)."
+    )
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        f"EMAIL_HOST_USER ou EMAIL_HOST_PASSWORD não configurados. "
+        f"EMAIL_HOST_USER={'vazio' if not EMAIL_HOST_USER else 'configurado'}, "
+        f"EMAIL_HOST_PASSWORD={'vazio' if not EMAIL_HOST_PASSWORD else 'configurado'}. "
+        f"Usando console backend para emails (emails serão exibidos no console)."
+    )
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    # Define valores padrão para evitar erros
+    EMAIL_HOST = "localhost"
+    EMAIL_PORT = 25
+    EMAIL_USE_TLS = False
+    EMAIL_USE_SSL = False
+    EMAIL_TIMEOUT = 10
+    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@nftmarketplace.com.br")
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", DEFAULT_FROM_EMAIL)
+else:
+    # Usar print para garantir que apareça no console do Docker
+    email_display = (
+        f"{EMAIL_HOST_USER[:3]}***@{EMAIL_HOST_USER.split('@')[1]}"
+        if "@" in EMAIL_HOST_USER
+        else "unknown"
+    )
+    print(
+        f"[EMAIL CONFIG] Configuração de email SMTP detectada. "
+        f"EMAIL_HOST_USER={email_display}, EMAIL_HOST={os.getenv('EMAIL_HOST', 'smtp.gmail.com')}, "
+        f"EMAIL_PORT={os.getenv('EMAIL_PORT', '587')}"
+    )
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"Configuração de email SMTP detectada. "
+        f"EMAIL_HOST_USER={email_display}"
+    )
+    # Configuração SMTP para Gmail
+    EMAIL_BACKEND = os.getenv(
+        "EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend"
+    )
+
+    # Gmail SMTP Configuration
+    EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "t")
+    EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() in ("true", "1", "t")
+    
+    # Validação: verificar se o email é um Gmail (opcional, apenas aviso)
+    if EMAIL_HOST == "smtp.gmail.com" and "@gmail.com" not in EMAIL_HOST_USER and "@googlemail.com" not in EMAIL_HOST_USER:
+        print(
+            f"[EMAIL CONFIG] ⚠ AVISO: EMAIL_HOST_USER ({EMAIL_HOST_USER}) não parece ser um Gmail. "
+            f"Para usar smtp.gmail.com, você precisa de um email @gmail.com ou @googlemail.com"
+        )
+
+    # Email padrão para envio
+    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+    # Email para notificações de admin
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", DEFAULT_FROM_EMAIL)
+
+    # Timeout para conexões SMTP (em segundos)
+    EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+
+# Configurações adicionais para Gmail
+EMAIL_SUBJECT_PREFIX = os.getenv("EMAIL_SUBJECT_PREFIX", "[NFT Portal] ")
 
 # Secure proxy headers for correct HTTPS detection behind nginx
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
