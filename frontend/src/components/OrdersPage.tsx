@@ -487,7 +487,10 @@ export function OrdersPage() {
                         <div className="flex items-center gap-4 lg:flex-col lg:items-end">
                           <div className="text-right">
                             <p className="text-2xl lg:text-3xl font-bold text-[#FFE000]">
-                              {formatBRL(order.total)}
+                              {formatBRL(parseFloat(order.total) + 1.00)}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              (inclui taxa de R$ 1,00)
                             </p>
                             {order.discount_amount && parseFloat(order.discount_amount) > 0 && (
                               <div className="flex items-center gap-2 justify-end mt-1">
@@ -585,10 +588,17 @@ export function OrdersPage() {
                                 </span>
                               </div>
                             )}
-                            <div className="flex justify-between items-center text-lg font-bold mt-4 pt-4 border-t">
-                              <span>Total:</span>
-                              <span className="text-[#FFE000]">{formatBRL(order.total)}</span>
+                            <div className="flex justify-between items-center text-sm mt-2">
+                              <span className="text-muted-foreground">Taxa de processamento (AbacatePay):</span>
+                              <span className="font-medium">R$ 1,00</span>
                             </div>
+                            <div className="flex justify-between items-center text-lg font-bold mt-4 pt-4 border-t">
+                              <span>Total a pagar:</span>
+                              <span className="text-[#FFE000]">{formatBRL(parseFloat(order.total) + 1.00)}</span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              * O total inclui a taxa de processamento de R$ 1,00 da AbacatePay
+                            </p>
                           </div>
 
                           {/* Botão de Pagamento - Na seção expandida */}
