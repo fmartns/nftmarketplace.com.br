@@ -89,28 +89,30 @@ def send_order_created_email(order):
             return result
         except Exception as email_error:
             error_str = str(email_error)
-            print(
-                f"[EMAIL] ✗ Erro ao enviar email de pedido criado: {error_str}"
-            )
-            
+            print(f"[EMAIL] ✗ Erro ao enviar email de pedido criado: {error_str}")
+
             # Mensagens de ajuda específicas para erros comuns
-            if "535" in error_str or "BadCredentials" in error_str or "Username and Password not accepted" in error_str:
+            if (
+                "535" in error_str
+                or "BadCredentials" in error_str
+                or "Username and Password not accepted" in error_str
+            ):
                 print(
-                    f"[EMAIL] ⚠ ERRO DE AUTENTICAÇÃO GMAIL (535):\n"
-                    f"  - Verifique se EMAIL_HOST_USER é um email Gmail válido (ex: seu-email@gmail.com)\n"
-                    f"  - Verifique se EMAIL_HOST_PASSWORD é uma SENHA DE APP do Gmail (não a senha normal)\n"
-                    f"  - Para criar senha de app: https://myaccount.google.com/apppasswords\n"
-                    f"  - Certifique-se de que não há espaços extras no .env\n"
-                    f"  - A senha de app deve ter 16 caracteres (sem espaços ou hífens)"
+                    "[EMAIL] ⚠ ERRO DE AUTENTICAÇÃO GMAIL (535):\n"
+                    "  - Verifique se EMAIL_HOST_USER é um email Gmail válido (ex: seu-email@gmail.com)\n"
+                    "  - Verifique se EMAIL_HOST_PASSWORD é uma SENHA DE APP do Gmail (não a senha normal)\n"
+                    "  - Para criar senha de app: https://myaccount.google.com/apppasswords\n"
+                    "  - Certifique-se de que não há espaços extras no .env\n"
+                    "  - A senha de app deve ter 16 caracteres (sem espaços ou hífens)"
                 )
             elif "Connection" in error_str or "timeout" in error_str.lower():
                 print(
-                    f"[EMAIL] ⚠ ERRO DE CONEXÃO:\n"
-                    f"  - Verifique se o container tem acesso à internet\n"
-                    f"  - Verifique se a porta 587 não está bloqueada\n"
-                    f"  - Tente aumentar EMAIL_TIMEOUT no .env"
+                    "[EMAIL] ⚠ ERRO DE CONEXÃO:\n"
+                    "  - Verifique se o container tem acesso à internet\n"
+                    "  - Verifique se a porta 587 não está bloqueada\n"
+                    "  - Tente aumentar EMAIL_TIMEOUT no .env"
                 )
-            
+
             logger.error(
                 f"Erro ao enviar email de pedido criado: {email_error}", exc_info=True
             )
