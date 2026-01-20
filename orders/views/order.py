@@ -26,6 +26,11 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         """Retorna apenas os pedidos do usuário autenticado"""
+        # Prevent error when user is AnonymousUser during schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Order.objects.none()
+        if not self.request.user.is_authenticated:
+            return Order.objects.none()
         return (
             Order.objects.filter(user=self.request.user)
             .prefetch_related("items", "coupon")

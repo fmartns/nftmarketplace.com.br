@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from .models import NFTItem, NFTItemAccess
 from .serializers.items import RecordAccessSerializer
@@ -11,6 +12,23 @@ from .serializers.items import RecordAccessSerializer
 class RecordNFTAccessAPI(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        operation_id="record_nft_access",
+        tags=["nft"],
+        summary="Registrar acesso a um NFT",
+        description="Registra um acesso a um NFT para estatísticas de trending",
+        request=RecordAccessSerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Acesso registrado com sucesso",
+                response={
+                    "type": "object",
+                    "properties": {"status": {"type": "string"}},
+                },
+            ),
+            404: OpenApiResponse(description="Item não encontrado"),
+        },
+    )
     def post(self, request):
         ser = RecordAccessSerializer(data=request.data)
         ser.is_valid(raise_exception=True)

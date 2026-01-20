@@ -22,6 +22,7 @@ class CustomerCreateView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    serializer_class = CustomerSerializer  # Add serializer_class for drf-spectacular
 
     @customer_create_schema
     def post(self, request):

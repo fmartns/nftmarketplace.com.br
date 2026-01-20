@@ -3,6 +3,7 @@ Serializers para cupons
 """
 
 from rest_framework import serializers
+from drf_spectacular.utils import extend_schema_field
 
 from ..models import Coupon
 
@@ -39,7 +40,8 @@ class CouponSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
 
-    def get_is_valid(self, obj):
+    @extend_schema_field(serializers.BooleanField())
+    def get_is_valid(self, obj) -> bool:
         """Retorna se o cupom é válido no momento"""
         return obj.is_valid()
 
