@@ -525,6 +525,7 @@ class BillingPixQRCodeView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    serializer_class = None  # Explicitly set to None for drf-spectacular
 
     @billing_pix_qrcode_schema
     def post(self, request, billing_id):
@@ -603,6 +604,7 @@ class BillingSimulateView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    serializer_class = None  # Explicitly set to None for drf-spectacular
 
     @billing_simulate_schema
     def post(self, request, billing_id):

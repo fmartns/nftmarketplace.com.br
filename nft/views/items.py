@@ -2,6 +2,8 @@ from rest_framework import permissions, status, generics, filters as drf_filters
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema, OpenApiResponse, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from ..docs.items import nft_item_upsert_schema, nft_item_list_schema
 
 from django.db.models import Count, Max
@@ -180,6 +182,27 @@ class PricingConfigAPI(APIView):
 
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        operation_id="pricing_config",
+        tags=["nft"],
+        summary="Obter configuração de markup",
+        description="Retorna a configuração de markup global ou específica de um item",
+        parameters=[
+            OpenApiParameter(
+                name="product_code",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Código do produto para obter markup específico",
+                required=False,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response=PricingConfigSerializer,
+                description="Configuração de markup retornada com sucesso",
+            ),
+        },
+    )
     def get(self, request):
         try:
             product_code = request.query_params.get("product_code")
@@ -227,6 +250,37 @@ class PricingConfigAPI(APIView):
 class TrendingByAccessAPI(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        operation_id="trending_by_access",
+        tags=["nft"],
+        summary="Obter NFTs em alta por acesso",
+        description="Retorna os NFTs mais acessados nos últimos N dias",
+        parameters=[
+            OpenApiParameter(
+                name="limit",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Número máximo de itens a retornar",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="days",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Número de dias para considerar",
+                required=False,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(
+                response={
+                    "type": "object",
+                    "properties": {"results": {"type": "array"}},
+                },
+                description="Lista de NFTs em alta",
+            ),
+        },
+    )
     def get(self, request):
         limit = int(request.query_params.get("limit", 4))
         days = int(request.query_params.get("days", 7))

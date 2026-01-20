@@ -4,7 +4,9 @@ Serializers para pedidos
 
 from rest_framework import serializers
 from decimal import Decimal
+from typing import Optional
 from django.contrib.contenttypes.models import ContentType
+from drf_spectacular.utils import extend_schema_field
 
 from ..models import Order, OrderItem, Coupon
 from .coupon import CouponSerializer
@@ -40,7 +42,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             "created_at",
         ]
 
-    def get_item_type(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_item_type(self, obj) -> Optional[str]:
         """Retorna o tipo do item ('legacy' ou 'nft')"""
         if obj.content_type.model == "item":
             return "legacy"
@@ -48,7 +51,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
             return "nft"
         return None
 
-    def get_item_name(self, obj):
+    @extend_schema_field(serializers.CharField(allow_null=True))
+    def get_item_name(self, obj) -> Optional[str]:
         """Retorna o nome do item"""
         if obj.item:
             if hasattr(obj.item, "name"):
@@ -57,7 +61,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
                 return obj.item.name_pt_br
         return None
 
-    def get_item_image_url(self, obj):
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_item_image_url(self, obj) -> Optional[str]:
         """Retorna a URL da imagem do item"""
         if obj.item and hasattr(obj.item, "image_url"):
             return obj.item.image_url
