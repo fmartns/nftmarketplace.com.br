@@ -51,8 +51,8 @@ class AbacatePayService:
         # Obtém configurações do settings
         api_base_url = getattr(settings, "ABACATEPAY_API_BASE_URL", None)
         api_key = getattr(settings, "ABACATEPAY_API_KEY", "")
-        # Timeout padrão de 30 segundos (pode ser configurado via settings)
-        timeout = getattr(settings, "ABACATEPAY_API_TIMEOUT", 30)
+        # Timeout padrão de 15 segundos (reduzido para não bloquear criação de billing)
+        timeout = getattr(settings, "ABACATEPAY_API_TIMEOUT", 15)
 
         # Verifica se a API base URL está configurada
         if not api_base_url:

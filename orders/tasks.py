@@ -12,6 +12,28 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
+def send_order_created_email_task(order_id: int):
+    """
+    Task assíncrona para enviar email de pedido criado
+
+    Args:
+        order_id: ID do pedido
+    """
+    try:
+        order = Order.objects.get(id=order_id)
+        from .emails import send_order_created_email
+
+        send_order_created_email(order)
+    except Order.DoesNotExist:
+        logger.error(f"Pedido com ID {order_id} não encontrado para envio de email")
+    except Exception as e:
+        logger.error(
+            f"Erro ao enviar email de pedido criado para pedido {order_id}: {e}",
+            exc_info=True,
+        )
+
+
+@shared_task
 def check_and_cancel_order(order_id: int):
     """
     Verifica se um pedido específico foi pago e cancela se não foi.
