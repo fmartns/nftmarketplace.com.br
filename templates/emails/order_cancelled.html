@@ -3,164 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pedido Cancelado</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f4f4f4;
-        }
-        .container {
-            background-color: #ffffff;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #ef4444;
-        }
-        .header h1 {
-            color: #ef4444;
-            margin: 0;
-            font-size: 28px;
-        }
-        .content {
-            margin-bottom: 30px;
-        }
-        .order-info {
-            background-color: #fef2f2;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 20px 0;
-            border-left: 4px solid #ef4444;
-        }
-        .order-info h2 {
-            color: #333;
-            margin-top: 0;
-            font-size: 20px;
-        }
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        .info-label {
-            font-weight: bold;
-            color: #666;
-        }
-        .info-value {
-            color: #333;
-        }
-        .items-list {
-            margin: 20px 0;
-        }
-        .item {
-            padding: 10px;
-            background-color: #f9f9f9;
-            margin: 10px 0;
-            border-radius: 5px;
-            border-left: 4px solid #ef4444;
-        }
-        .total {
-            background-color: #fef2f2;
-            color: #ef4444;
-            padding: 15px;
-            border-radius: 5px;
-            text-align: center;
-            font-size: 20px;
-            font-weight: bold;
-            margin: 20px 0;
-            border: 2px solid #ef4444;
-        }
-        .button {
-            display: inline-block;
-            padding: 12px 30px;
-            background-color: #FFE000;
-            color: #000;
-            text-decoration: none;
-            border-radius: 5px;
-            font-weight: bold;
-            margin: 20px 0;
-            text-align: center;
-        }
-        .footer {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            color: #666;
-            font-size: 12px;
-        }
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Pedido Cancelado - NFT Marketplace</title>
+    <!--[if mso]>
+    <style type="text/css">
+        body, table, td {font-family: Arial, sans-serif !important;}
     </style>
+    <![endif]-->
 </head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>❌ Pedido Cancelado</h1>
-        </div>
-        
-        <div class="content">
-            <p>Olá <strong>{{ user.first_name|default:user.username }}</strong>,</p>
-            
-            <p>Infelizmente, seu pedido foi cancelado automaticamente porque o pagamento não foi realizado dentro do prazo estipulado.</p>
-            
-            <div class="order-info">
-                <h2>Detalhes do Pedido Cancelado</h2>
-                <div class="info-row">
-                    <span class="info-label">Número do Pedido:</span>
-                    <span class="info-value"><strong>{{ order_id }}</strong></span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Motivo:</span>
-                    <span class="info-value">{{ reason }}</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Status:</span>
-                    <span class="info-value" style="color: #ef4444; font-weight: bold;">Cancelado</span>
-                </div>
-            </div>
-            
-            <div class="items-list">
-                <h3>Itens do Pedido:</h3>
-                {% for item in items %}
-                <div class="item">
-                    <strong>{{ item.item.name|default:item.item }}</strong><br>
-                    Quantidade: {{ item.quantity }}<br>
-                    Preço unitário: R$ {{ item.unit_price|floatformat:2 }}<br>
-                    Subtotal: R$ {{ item.total_price|floatformat:2 }}
-                </div>
-                {% endfor %}
-            </div>
-            
-            <div class="total">
-                Valor Total: R$ {{ total|floatformat:2 }}
-            </div>
-            
-            <p style="text-align: center; background-color: #fef2f2; padding: 15px; border-radius: 5px;">
-                <strong>💡 Não se preocupe!</strong><br>
-                Você pode criar um novo pedido a qualquer momento. Os itens ainda estão disponíveis.
-            </p>
-            
-            <p style="text-align: center;">
-                <a href="{{ site_url }}" class="button">Fazer Nova Compra</a>
-            </p>
-        </div>
-        
-        <div class="footer">
-            <p>Este é um email automático, por favor não responda.</p>
-            <p>Se você realizou o pagamento e ainda assim recebeu este email, entre em contato conosco imediatamente.</p>
-        </div>
-    </div>
+<body style="margin: 0; padding: 0; background-color: #0a0a0f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <!-- Wrapper Table -->
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0f; padding: 20px 0;">
+        <tr>
+            <td align="center" style="padding: 0;">
+                <!-- Main Container -->
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="max-width: 600px; background-color: #1a1a2e; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 32px 24px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: 700; line-height: 1.2;">Pedido Cancelado</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 32px 24px;">
+                            <p style="margin: 0 0 20px 0; color: #ffffff; font-size: 16px; line-height: 1.6;">
+                                Olá <strong style="color: #ef4444;">{{ user.first_name|default:user.username }}</strong>,
+                            </p>
+                            
+                            <p style="margin: 0 0 24px 0; color: #a1a1aa; font-size: 16px; line-height: 1.6;">
+                                Infelizmente, seu pedido foi cancelado automaticamente porque o pagamento não foi realizado dentro do prazo estipulado.
+                            </p>
+                            
+                            <!-- Order Info Card -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #262640; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.2); margin: 24px 0;">
+                                <tr>
+                                    <td style="padding: 20px;">
+                                        <h2 style="margin: 0 0 16px 0; color: #ef4444; font-size: 20px; font-weight: 600;">Detalhes do Pedido Cancelado</h2>
+                                        
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Número do Pedido:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <strong style="color: #ffffff; font-size: 14px;">{{ order_id }}</strong>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Motivo:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                                    <span style="color: #ffffff; font-size: 14px;">{{ reason }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 8px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px; font-weight: 500;">Status:</span>
+                                                </td>
+                                                <td align="right" style="padding: 8px 0;">
+                                                    <span style="color: #ef4444; font-size: 14px; font-weight: 600;">Cancelado</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Items List -->
+                            <h3 style="margin: 24px 0 16px 0; color: #ffffff; font-size: 18px; font-weight: 600;">Itens do Pedido:</h3>
+                            
+                            {% for item in items %}
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #262640; border-radius: 8px; border-left: 4px solid #ef4444; margin-bottom: 12px;">
+                                <tr>
+                                    <td style="padding: 16px;">
+                                        <p style="margin: 0 0 8px 0; color: #ffffff; font-size: 16px; font-weight: 600;">{{ item.item.name|default:item.item }}</p>
+                                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                            <tr>
+                                                <td style="padding: 4px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px;">Quantidade:</span>
+                                                    <span style="color: #ffffff; font-size: 14px; font-weight: 500; margin-left: 8px;">{{ item.quantity }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px;">Preço unitário:</span>
+                                                    <span style="color: #ef4444; font-size: 14px; font-weight: 600; margin-left: 8px;">R$ {{ item.unit_price|floatformat:2 }}</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 4px 0;">
+                                                    <span style="color: #a1a1aa; font-size: 14px;">Subtotal:</span>
+                                                    <span style="color: #ffffff; font-size: 14px; font-weight: 600; margin-left: 8px;">R$ {{ item.total_price|floatformat:2 }}</span>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            {% endfor %}
+                            
+                            <!-- Total -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(239, 68, 68, 0.1); border-radius: 8px; border: 2px solid rgba(239, 68, 68, 0.3); margin: 24px 0;">
+                                <tr>
+                                    <td style="padding: 20px; text-align: center;">
+                                        <p style="margin: 0; color: #ef4444; font-size: 20px; font-weight: 700;">Valor Total: R$ {{ total|floatformat:2 }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Reassurance Notice -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: rgba(255, 224, 0, 0.1); border-radius: 8px; border: 1px solid rgba(255, 224, 0, 0.2); margin: 24px 0;">
+                                <tr>
+                                    <td style="padding: 16px; text-align: center;">
+                                        <p style="margin: 0; color: #FFE000; font-size: 14px; font-weight: 600;">
+                                            <strong>Não se preocupe!</strong><br>
+                                            <span style="color: #a1a1aa; font-weight: 400; font-size: 13px; margin-top: 4px; display: block;">Você pode criar um novo pedido a qualquer momento. Os itens ainda estão disponíveis.</span>
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- CTA Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 24px 0;">
+                                <tr>
+                                    <td align="center" style="padding: 0;">
+                                        <a href="{{ site_url }}" style="display: inline-block; padding: 14px 32px; background-color: #FFE000; color: #000000; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; text-align: center;">Fazer Nova Compra</a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); text-align: center;">
+                            <p style="margin: 0 0 8px 0; color: #a1a1aa; font-size: 12px; line-height: 1.5;">
+                                Este é um email automático, por favor não responda.
+                            </p>
+                            <p style="margin: 0; color: #a1a1aa; font-size: 12px; line-height: 1.5;">
+                                Se você realizou o pagamento e ainda assim recebeu este email, entre em contato conosco imediatamente.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>
