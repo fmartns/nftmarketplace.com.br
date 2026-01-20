@@ -6,12 +6,11 @@ interface SEOData {
   image?: string;
   url?: string;
   type?: string;
-  productImage?: string; // Para atualizar o favicon com a imagem do produto
 }
 
 export function useSEO(data: SEOData) {
   useEffect(() => {
-    const { title, description, image, url, type = 'website', productImage } = data;
+    const { title, description, image, url, type = 'website' } = data;
     
     // URL atual (usar a fornecida ou a atual da página)
     const currentUrl = url || (typeof window !== 'undefined' ? window.location.href : '');
@@ -74,53 +73,6 @@ export function useSEO(data: SEOData) {
       updateMetaTag('twitter:image', imageUrl);
     }
     updateMetaTag('twitter:card', 'summary_large_image');
-    
-    // Atualizar favicon com imagem do produto (se fornecido)
-    if (productImage) {
-      const updateFavicon = (href: string) => {
-        // Atualizar todos os links de favicon
-        const faviconSelectors = [
-          "link[rel='icon']",
-          "link[rel='shortcut icon']",
-          "link[rel='apple-touch-icon']"
-        ];
-        
-        faviconSelectors.forEach(selector => {
-          let link = document.querySelector(selector) as HTMLLinkElement;
-          if (link) {
-            link.href = href;
-          }
-        });
-        
-        // Criar link principal se não existir
-        let mainLink = document.querySelector("link[rel='icon']") as HTMLLinkElement;
-        if (!mainLink) {
-          mainLink = document.createElement('link');
-          mainLink.rel = 'icon';
-          mainLink.type = 'image/png';
-          document.head.appendChild(mainLink);
-        }
-        mainLink.href = href;
-      };
-      
-      // Usar a imagem do produto como favicon
-      const productImageUrl = productImage.startsWith('http') ? productImage : `${baseUrl}${productImage}`;
-      updateFavicon(productImageUrl);
-    } else {
-      // Restaurar favicon padrão
-      const defaultFavicon = '/favicon.png';
-      const faviconSelectors = [
-        "link[rel='icon']",
-        "link[rel='shortcut icon']"
-      ];
-      
-      faviconSelectors.forEach(selector => {
-        let link = document.querySelector(selector) as HTMLLinkElement;
-        if (link) {
-          link.href = defaultFavicon;
-        }
-      });
-    }
     
     // Cleanup: restaurar valores padrão quando o componente desmontar
     return () => {
