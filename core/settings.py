@@ -436,6 +436,10 @@ _abacatepay_public_key_raw = os.getenv(
     "t9dXRhHHo3yDEj5pVDYz0frf7q6bMKyMRmxxCPIPp3RCplBfXRxqlC6ZpiWmOqj4L63qEaeUOtrCI8P0VMUgo6iIga2ri9ogaHFs0WIIywSMg0q7RmBfybe1E5XJcfC4IW3alNqym0tXoAKkzvfEjZxV6bE0oG2zJrNNYmUCKZyV0KZ3JS8Votf9EAWWYdiDkMkpbMdPggfh1EqHlVkMiTady6jOR3hyzGEHrIz2Ret0xHKMbiqkr9HS1JhNHDX9",
 )
 # Remove espaços em branco e quebras de linha
-ABACATEPAY_PUBLIC_KEY = _abacatepay_public_key_raw.strip().replace("\n", "").replace("\r", "") if _abacatepay_public_key_raw else ""
+ABACATEPAY_PUBLIC_KEY = (
+    _abacatepay_public_key_raw.strip().replace("\n", "").replace("\r", "")
+    if _abacatepay_public_key_raw
+    else ""
+)
 ABACATEPAY_WEBHOOK_SECRET = os.getenv("ABACATEPAY_WEBHOOK_SECRET", "")
 ABACATEPAY_DOCS_URL = os.getenv("ABACATEPAY_DOCS_URL", "https://docs.abacatepay.com")
