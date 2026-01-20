@@ -69,8 +69,22 @@ class OrderListCreateView(generics.ListCreateAPIView):
 
                     nft_item = NFTItem.objects.get(id=item_data["object_id"])
                     if nft_item.product_code:
-                        # Busca o preço mínimo atualizado
-                        current_prices = fetch_min_listing_prices(nft_item.product_code)
+                        # Busca o preço mínimo atualizado (com timeout curto de 5s para não bloquear)
+                        # Se falhar ou demorar, usa o preço do banco
+                        current_prices = None
+                        try:
+                            # Tenta buscar preço atualizado com timeout curto
+                            # Usa o preço do banco como fallback se demorar
+                            current_prices = fetch_min_listing_prices(
+                                nft_item.product_code, timeout=5
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Erro ao buscar preço atualizado para NFT {nft_item.product_code}: {e}. "
+                                f"Usando preço do banco: R$ {original_price}"
+                            )
+                            current_prices = None
+
                         if current_prices:
                             _, _, current_price_brl = current_prices
                             # Arredonda para 2 casas decimais (igual ao last_price_brl do modelo)
@@ -182,10 +196,10 @@ class OrderListCreateView(generics.ListCreateAPIView):
             countdown=60 * 5,  # Executa após 5 minutos (300 segundos)
         )
 
-        # Envia email de pedido criado
-        from ..emails import send_order_created_email
+        # Envia email de pedido criado (assíncrono para não bloquear a resposta)
+        from ..tasks import send_order_created_email_task
 
-        send_order_created_email(order)
+        send_order_created_email_task.delay(order.id)
 
         # Pagamento será processado via AbacatePay (criar billing separadamente)
 

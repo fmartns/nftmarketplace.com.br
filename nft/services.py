@@ -461,7 +461,10 @@ def map_order_to_item_fields(
 
 
 def _paginate_immutable(
-    params: Dict[str, Any], headers: Dict[str, str], max_pages: int = 50
+    params: Dict[str, Any],
+    headers: Dict[str, str],
+    max_pages: int = 50,
+    timeout: int = 30,
 ) -> List[Dict[str, Any]]:
     """Fetch all pages from Immutable orders endpoint using cursor."""
     all_results: List[Dict[str, Any]] = []
@@ -474,8 +477,8 @@ def _paginate_immutable(
             IMMUTABLE_BASE_URL,
             params=page_params,
             headers=headers,
-            timeout=30,
-            retries=4,
+            timeout=timeout,
+            retries=2 if timeout < 10 else 4,  # Menos retries se timeout curto
         )
         if not isinstance(data, dict):
             break
@@ -681,12 +684,17 @@ def fetch_item_from_immutable(
 
 def fetch_min_listing_prices(
     product_code: str,
+    timeout: int = 5,
 ) -> Optional[Tuple[Decimal, Decimal, Decimal]]:
     """Fetch all active orders and return the minimum (eth, usd, brl) with markup applied,
     mirroring frontend listing conversions.
 
     This uses the same pagination, conversion, and pick_best_bid_order logic as
     fetch_item_from_immutable, ensuring parity with the product page's displayed price.
+
+    Args:
+        product_code: Código do produto NFT
+        timeout: Timeout em segundos para a requisição (padrão: 5s para não bloquear criação de pedido)
     """
     if not product_code or not str(product_code).strip():
         return None
@@ -707,11 +715,16 @@ def fetch_min_listing_prices(
     results: List[Dict[str, Any]] = []
     for pp in try_variants:
         try:
-            results = _paginate_immutable(pp, headers)
+            # Usa timeout reduzido e menos retries para não bloquear criação de pedido
+            results = _paginate_immutable(pp, headers, timeout=timeout)
             if results:
                 break
             data = _get_json_with_retries(
-                IMMUTABLE_BASE_URL, params=pp, headers=headers, timeout=30, retries=4
+                IMMUTABLE_BASE_URL,
+                params=pp,
+                headers=headers,
+                timeout=timeout,
+                retries=2,
             )
             if isinstance(data, dict):
                 results = data.get("result") or []
