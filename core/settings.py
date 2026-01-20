@@ -300,7 +300,9 @@ if not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD:
     EMAIL_USE_TLS = False
     EMAIL_USE_SSL = False
     EMAIL_TIMEOUT = 10
-    DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@nftmarketplace.com.br")
+    DEFAULT_FROM_EMAIL = os.getenv(
+        "DEFAULT_FROM_EMAIL", "noreply@nftmarketplace.com.br"
+    )
     ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", DEFAULT_FROM_EMAIL)
 else:
     # Usar print para garantir que apareça no console do Docker
@@ -318,8 +320,7 @@ else:
 
     logger = logging.getLogger(__name__)
     logger.info(
-        f"Configuração de email SMTP detectada. "
-        f"EMAIL_HOST_USER={email_display}"
+        f"Configuração de email SMTP detectada. " f"EMAIL_HOST_USER={email_display}"
     )
     # Configuração SMTP para Gmail
     EMAIL_BACKEND = os.getenv(
@@ -331,9 +332,13 @@ else:
     EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
     EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "True").lower() in ("true", "1", "t")
     EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "False").lower() in ("true", "1", "t")
-    
+
     # Validação: verificar se o email é um Gmail (opcional, apenas aviso)
-    if EMAIL_HOST == "smtp.gmail.com" and "@gmail.com" not in EMAIL_HOST_USER and "@googlemail.com" not in EMAIL_HOST_USER:
+    if (
+        EMAIL_HOST == "smtp.gmail.com"
+        and "@gmail.com" not in EMAIL_HOST_USER
+        and "@googlemail.com" not in EMAIL_HOST_USER
+    ):
         print(
             f"[EMAIL CONFIG] ⚠ AVISO: EMAIL_HOST_USER ({EMAIL_HOST_USER}) não parece ser um Gmail. "
             f"Para usar smtp.gmail.com, você precisa de um email @gmail.com ou @googlemail.com"

@@ -83,6 +83,15 @@ jobs:
           ABACATEPAY_API_KEY: ${{ secrets.ABACATEPAY_API_KEY }}
           ABACATEPAY_PUBLIC_KEY: ${{ secrets.ABACATEPAY_PUBLIC_KEY }}
           ABACATEPAY_WEBHOOK_SECRET: ${{ secrets.ABACATEPAY_WEBHOOK_SECRET }}
+          EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
+          EMAIL_USE_SSL: ${{ secrets.EMAIL_USE_SSL }}
+          EMAIL_TIMEOUT: ${{ secrets.EMAIL_TIMEOUT }}
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
@@ -186,6 +195,15 @@ jobs:
           ABACATEPAY_API_KEY=${{ secrets.ABACATEPAY_API_KEY }}
           ABACATEPAY_PUBLIC_KEY=${{ secrets.ABACATEPAY_PUBLIC_KEY }}
           ABACATEPAY_WEBHOOK_SECRET=${{ secrets.ABACATEPAY_WEBHOOK_SECRET }}
+          EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_HOST_PASSWORD=${{ secrets.EMAIL_HOST_PASSWORD }}
+          DEFAULT_FROM_EMAIL=${{ secrets.DEFAULT_FROM_EMAIL }}
+          ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+          EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT=${{ secrets.EMAIL_PORT }}
+          EMAIL_USE_TLS=${{ secrets.EMAIL_USE_TLS }}
+          EMAIL_USE_SSL=${{ secrets.EMAIL_USE_SSL }}
+          EMAIL_TIMEOUT=${{ secrets.EMAIL_TIMEOUT }}
           ENVEOF
           
           # Check if certificates already exist (check multiple possible locations)
