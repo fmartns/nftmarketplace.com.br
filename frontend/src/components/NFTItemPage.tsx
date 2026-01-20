@@ -67,8 +67,26 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
     
     (async () => {
       try {
-        // 1) Buscar dados básicos do backend primeiro (nome, foto, atributos)
-        const backendItem = await fetchNFTByProductCode(productCode).catch(() => null);
+        // 1) Buscar dados básicos do backend IMEDIATAMENTE (sem esperar upsert)
+        // Isso permite exibir nome e foto o mais rápido possível
+        const backendItemPromise = fetchNFTByProductCode(productCode).catch(() => null);
+        
+        // 2) Fazer upsert em paralelo (não bloqueia a exibição)
+        const upsertPromise = Promise.race([
+          upsertNFTByProductCode(productCode),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('upsert-timeout')), 5000)),
+        ]).catch((e: any) => {
+          if (!mounted) return;
+          const msg = String(e?.message || 'erro');
+          const isHardFail = msg.includes(' 400 ') || msg.toLowerCase().includes('coleção') || msg.toLowerCase().includes('nao cadastrada') || msg.toLowerCase().includes('não cadastrada');
+          if (isHardFail) {
+            setError('Coleção não cadastrada para este produto.');
+          }
+          return null;
+        });
+        
+        // 3) Buscar item do backend (pode ter dados antigos, mas exibe imediatamente)
+        const backendItem = await backendItemPromise;
         
         if (!mounted) return;
         
@@ -88,7 +106,7 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
           
           setItem(basicItem);
           setError(null);
-          setLoadingBasicInfo(false); // Parar loading assim que tiver dados básicos
+          setLoadingBasicInfo(false); // Parar loading assim que tiver dados básicos - NOME E FOTO JÁ VISÍVEIS
         } else {
           // Se não tem backend, tentar Immutable
           try {
@@ -100,10 +118,32 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
             }
           } catch {
             // Se falhar, manter loading até ter algo
+            if (mounted) {
+              setError('Item não encontrado');
+              setLoadingBasicInfo(false);
+            }
           }
         }
         
-        // 2) Enriquecer com dados da Immutable em background (sem bloquear)
+        // 4) Aguardar upsert completar (em background, não bloqueia UI)
+        await upsertPromise;
+        
+        // 5) Se o upsert completou, buscar item atualizado (com preço novo)
+        if (mounted) {
+          const updatedItem = await fetchNFTByProductCode(productCode).catch(() => null);
+          if (updatedItem && mounted) {
+            setNftItem(updatedItem);
+            // Atualizar preço se mudou
+            if (updatedItem.last_price_brl) {
+              setItem(prev => prev ? {
+                ...prev,
+                last_price_brl: Number(updatedItem.last_price_brl),
+              } : prev);
+            }
+          }
+        }
+        
+        // 6) Enriquecer com dados da Immutable em background (sem bloquear)
         if (mounted) {
           try {
             const immutableItem = await fetchImmutableItem(productCode);
@@ -117,23 +157,6 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
             }
           } catch {
             // Ignorar erro, já temos dados básicos
-          }
-        }
-        
-        // 3) Verificar se coleção está cadastrada (sem bloquear)
-        if (mounted) {
-          try {
-            await Promise.race([
-              upsertNFTByProductCode(productCode),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('upsert-timeout')), 2000)),
-            ]);
-          } catch (e: any) {
-            if (!mounted) return;
-            const msg = String(e?.message || 'erro');
-            const isHardFail = msg.includes(' 400 ') || msg.toLowerCase().includes('coleção') || msg.toLowerCase().includes('nao cadastrada') || msg.toLowerCase().includes('não cadastrada');
-            if (isHardFail) {
-              setError('Coleção não cadastrada para este produto.');
-            }
           }
         }
       } catch (e: any) {
@@ -164,11 +187,24 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
       try {
         if (!mounted) return;
 
-        // 1) Buscar preços e listagens em paralelo
+        // 1) Primeiro, garantir que o backend está atualizado (refresh do preço)
+        // Isso garante que temos o preço mais recente mesmo se o primeiro useEffect não completou o upsert
+        try {
+          await Promise.race([
+            upsertNFTByProductCode(productCode),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('upsert-timeout')), 3000)),
+          ]);
+        } catch {
+          // Ignorar erro, continua mesmo se falhar
+        }
+
+        if (!mounted) return;
+
+        // 2) Buscar preços e listagens em paralelo (agora com backend atualizado)
         const listingsPromise = fetchImmutableListings(productCode);
         const backendPromise = fetchNFTByProductCode(productCode).catch(() => null);
 
-        // 2) Carregar listagens (usando mesma lógica de markup do backend)
+        // 3) Carregar listagens (usando mesma lógica de markup do backend)
         let ls: ImmutableListingView[] = [];
         try {
           const lsRaw = await withTimeout(listingsPromise, 5000);
@@ -181,7 +217,7 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
           // manter ls = []
         }
 
-        // 3) Atualizar preços do backend
+        // 4) Atualizar preços do backend (agora com dados atualizados)
         try {
           const bi = await backendPromise;
           if (mounted) {
@@ -203,6 +239,11 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                 // Usar sempre o preço do backend, que já vem com o menor preço da Immutable + markup
                 return { ...prev, last_price_brl: backendItemPriceBRL };
               });
+              
+              // Também atualizar nftItem se existir
+              if (bi) {
+                setNftItem(bi as NFTItem);
+              }
             }
           }
         } catch {
@@ -456,19 +497,23 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
           {/* Removed 'Ver na Immutable' button as requested */}
         </div>
 
-        {error && !item && !nftItem ? (
+        {error && !item && !nftItem && !loadingBasicInfo ? (
           <div className="text-center text-red-500 py-10">{error}</div>
-        ) : item || nftItem ? (
+        ) : (item || nftItem) ? (
           <div className="flex flex-col lg:flex-row gap-6 scroll-smooth justify-center">
             {/* Left Column */}
             <div className="flex-[3] lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto scroll-smooth space-y-4">
               <div className="rounded-xl bg-[#202020] p-4 w-full">
                 <div className="relative w-full h-[70vh] rounded-lg overflow-hidden bg-black/20 flex items-center justify-center">
-                  <ImageWithFallback
-                    src={item?.image_url || nftItem?.image_url || ''}
-                    alt={item?.name || nftItem?.name || productCode}
-                    className="max-h-full max-w-full object-contain"
-                  />
+                  {(item?.image_url || nftItem?.image_url) ? (
+                    <ImageWithFallback
+                      src={item?.image_url || nftItem?.image_url || ''}
+                      alt={item?.name || nftItem?.name || productCode}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <Skeleton className="w-full h-full rounded-lg" />
+                  )}
                 </div>
               </div>
 
@@ -555,8 +600,18 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
               <div className="rounded-xl bg-[#202020] p-4 w-full">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold">{item?.name || nftItem?.name || productCode}</h1>
-                    <div className="mt-1 text-sm text-gray-400">{listings.length} listados</div>
+                    {(item?.name || nftItem?.name) ? (
+                      <h1 className="text-2xl lg:text-3xl font-bold">{item?.name || nftItem?.name || productCode}</h1>
+                    ) : (
+                      <Skeleton className="h-7 w-64 mb-2" />
+                    )}
+                    <div className="mt-1 text-sm text-gray-400">
+                      {loadingPrice ? (
+                        <Skeleton className="h-3 w-24 inline-block" />
+                      ) : (
+                        `${listings.length} listados`
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {/* Histórico de vendas removido por solicitação */}
@@ -638,23 +693,38 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                   <div className="hidden sm:block">Expira em</div>
                   <div className="hidden sm:block">Comprar</div>
                 </div>
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {listings
-                    .filter(l => typeof l.price_brl === 'number' && isFinite(l.price_brl) && l.price_brl > 0)
-                    .map((l) => (
-                    <div key={l.id} className="grid grid-cols-4 gap-2 items-center p-3 bg-black/20 rounded-lg">
-                      <div className="font-medium text-[#FFE000]">R$ {formatBRL(l.price_brl)}</div>
-                      <div>{l.quantity}</div>
-                      <div className="hidden sm:block text-xs text-gray-400">{l.expiration ? new Date(l.expiration).toLocaleDateString('pt-BR') : '—'}</div>
-                      <div className="hidden sm:block text-right">
-                        <Button disabled size="sm" variant="outline" className="h-8 px-3 opacity-60 cursor-not-allowed">Comprar</Button>
+                {loadingPrice ? (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="grid grid-cols-4 gap-2 items-center p-3 bg-black/20 rounded-lg">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-8" />
+                        <Skeleton className="h-4 w-24 hidden sm:block" />
+                        <div className="hidden sm:block text-right">
+                          <Skeleton className="h-8 w-20 ml-auto" />
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                  {listings.filter(l => l.price_brl > 0).length === 0 && (
-                    <div className="text-center text-sm text-gray-400 py-6">Sem anúncios ativos para este item.</div>
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
+                    {listings
+                      .filter(l => typeof l.price_brl === 'number' && isFinite(l.price_brl) && l.price_brl > 0)
+                      .map((l) => (
+                      <div key={l.id} className="grid grid-cols-4 gap-2 items-center p-3 bg-black/20 rounded-lg">
+                        <div className="font-medium text-[#FFE000]">R$ {formatBRL(l.price_brl)}</div>
+                        <div>{l.quantity}</div>
+                        <div className="hidden sm:block text-xs text-gray-400">{l.expiration ? new Date(l.expiration).toLocaleDateString('pt-BR') : '—'}</div>
+                        <div className="hidden sm:block text-right">
+                          <Button disabled size="sm" variant="outline" className="h-8 px-3 opacity-60 cursor-not-allowed">Comprar</Button>
+                        </div>
+                      </div>
+                    ))}
+                    {listings.filter(l => l.price_brl > 0).length === 0 && (
+                      <div className="text-center text-sm text-gray-400 py-6">Sem anúncios ativos para este item.</div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Offers removed as requested */}
@@ -673,79 +743,6 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        ) : loadingBasicInfo ? (
-          <div className="flex flex-col lg:flex-row gap-6 justify-center">
-            {/* Left Column Skeleton */}
-            <div className="flex-[3] space-y-4">
-              <div className="rounded-xl bg-[#202020] p-4 w-full">
-                <Skeleton className="w-full h-[70vh] rounded-lg" />
-              </div>
-              <div className="rounded-xl bg-[#202020] p-4 w-full">
-                <div className="flex items-center justify-between mb-3">
-                  <Skeleton className="h-4 w-40" />
-                </div>
-                <div className="w-full h-[340px] space-y-3">
-                  <Skeleton className="h-[260px] w-full" />
-                  <div className="flex gap-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-4 w-16" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column Skeleton */}
-            <div className="flex-[2] space-y-4">
-              <div className="rounded-xl bg-[#202020] p-4 w-full">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <Skeleton className="h-7 w-64" />
-                    <Skeleton className="h-3 w-32" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Skeleton className="h-9 w-9" />
-                    <Skeleton className="h-9 w-9" />
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-[#202020] p-4 w-full">
-                <div className="grid grid-cols-1 gap-3">
-                  <div className="rounded-lg bg-black/20 p-3 text-center">
-                    <Skeleton className="h-4 w-16 mx-auto mb-2" />
-                    <Skeleton className="h-6 w-40 mx-auto" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <Skeleton className="h-11 w-full" />
-                  <Skeleton className="h-11 w-full" />
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-[#202020] p-4 w-full">
-                <Skeleton className="h-5 w-24 mb-3" />
-                <div className="grid grid-cols-4 gap-2 text-xs px-2 py-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-4 w-10" />
-                  <Skeleton className="h-4 w-20 hidden sm:block" />
-                  <Skeleton className="h-4 w-16 hidden sm:block" />
-                </div>
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {[...Array(5)].map((_, i) => (
-                    <div key={i} className="grid grid-cols-4 gap-2 items-center p-3 bg-black/20 rounded-lg">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-4 w-8" />
-                      <Skeleton className="h-4 w-24 hidden sm:block" />
-                      <div className="hidden sm:block text-right">
-                        <Skeleton className="h-8 w-20 ml-auto" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
         ) : null}
