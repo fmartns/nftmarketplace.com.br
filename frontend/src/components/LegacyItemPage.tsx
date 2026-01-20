@@ -125,7 +125,6 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
     image: item?.image_url || undefined,
     url: typeof window !== 'undefined' ? window.location.href : undefined,
     type: 'product',
-    productImage: item?.image_url || undefined, // Usar imagem do produto como favicon
   });
 
   const chartData = useMemo(() => {
