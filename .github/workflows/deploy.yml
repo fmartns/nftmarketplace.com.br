@@ -83,6 +83,15 @@ jobs:
           ABACATEPAY_API_KEY: ${{ secrets.ABACATEPAY_API_KEY }}
           ABACATEPAY_PUBLIC_KEY: ${{ secrets.ABACATEPAY_PUBLIC_KEY }}
           ABACATEPAY_WEBHOOK_SECRET: ${{ secrets.ABACATEPAY_WEBHOOK_SECRET }}
+          EMAIL_HOST_USER: ${{ secrets.EMAIL_HOST_USER }}
+          EMAIL_HOST_PASSWORD: ${{ secrets.EMAIL_HOST_PASSWORD }}
+          EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+          EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+          EMAIL_USE_TLS: ${{ secrets.EMAIL_USE_TLS }}
+          EMAIL_USE_SSL: ${{ secrets.EMAIL_USE_SSL }}
+          EMAIL_TIMEOUT: ${{ secrets.EMAIL_TIMEOUT }}
+          DEFAULT_FROM_EMAIL: ${{ secrets.DEFAULT_FROM_EMAIL }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
         run: |
           # Setup SSH
           mkdir -p ~/.ssh
@@ -189,7 +198,7 @@ jobs:
           ENVEOF
           
           # Adicionar variáveis de email apenas se existirem (opcionais)
-          # Nota: Se os secrets não existirem, as variáveis serão vazias e não serão adicionadas ao .env
+          # Nota: As variáveis são passadas via env do step do GitHub Actions
           if [ -n "${{ secrets.EMAIL_HOST_USER }}" ]; then
             echo "EMAIL_HOST_USER=${{ secrets.EMAIL_HOST_USER }}" | sudo tee -a .env >/dev/null
           fi
