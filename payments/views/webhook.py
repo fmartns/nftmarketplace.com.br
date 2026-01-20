@@ -75,7 +75,7 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
             body_buffer = raw_body
         else:
             body_buffer = raw_body.encode("utf-8")
-        
+
         # Verificar se a chave pública está correta (não truncada)
         if len(ABACATEPAY_PUBLIC_KEY) < 100:
             logger.error(
@@ -181,16 +181,16 @@ def AbacatePayWebhookView(request):
         # Mas também precisamos como string para fazer parse do JSON depois
         raw_body_bytes = request.body
         raw_body_str = raw_body_bytes.decode("utf-8")
-        
+
         # Obter assinatura do header (pode estar em diferentes formatos)
         # Django converte headers para HTTP_* no META, então precisamos verificar ambos
         signature = (
-            request.headers.get("X-Webhook-Signature", "") or
-            request.headers.get("x-webhook-signature", "") or
-            request.META.get("HTTP_X_WEBHOOK_SIGNATURE", "") or
-            request.META.get("HTTP_X_WEBHOOK_signature", "")
+            request.headers.get("X-Webhook-Signature", "")
+            or request.headers.get("x-webhook-signature", "")
+            or request.META.get("HTTP_X_WEBHOOK_SIGNATURE", "")
+            or request.META.get("HTTP_X_WEBHOOK_signature", "")
         ).strip()
-        
+
         # Log detalhado para debug em produção
         all_headers = dict(request.headers)
         meta_headers = {k: v for k, v in request.META.items() if k.startswith("HTTP_")}
@@ -219,7 +219,9 @@ def AbacatePayWebhookView(request):
                 )
         else:
             # Se não houver assinatura, valida via secret na URL
-            logger.info("Assinatura não encontrada no header, tentando validar via secret na URL")
+            logger.info(
+                "Assinatura não encontrada no header, tentando validar via secret na URL"
+            )
             signature_valid = verify_webhook_secret(request)
             if not signature_valid:
                 logger.warning("Secret do webhook inválido ou ausente")
