@@ -191,3 +191,17 @@ def cancel_unpaid_orders_security_check():
             exc_info=True,
         )
         return {"status": "error", "error": str(e)}
+
+
+@shared_task
+def send_db_backup_email_task():
+    """
+    Task diária para enviar backup do banco de dados por email ao administrador.
+    """
+    try:
+        from .backup import send_db_backup_email
+
+        return {"status": "success", "sent": send_db_backup_email()}
+    except Exception as e:
+        logger.error(f"Erro ao enviar backup do banco: {e}", exc_info=True)
+        return {"status": "error", "error": str(e)}

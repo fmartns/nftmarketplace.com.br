@@ -234,6 +234,15 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        # Conservative defaults to mitigate abuse without impacting normal usage
+        "anon": os.getenv("DRF_THROTTLE_ANON", "120/min"),
+        "user": os.getenv("DRF_THROTTLE_USER", "600/min"),
+    },
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",  # Only for development
@@ -417,6 +426,14 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=2, minute=0),  # Executa diariamente às 2h00
         "options": {
             "expires": 60 * 60 * 4,  # Expira em 4 horas se não executar
+        },
+    },
+    # Backup diário do banco por email
+    "send-db-backup-email-4am": {
+        "task": "orders.tasks.send_db_backup_email_task",
+        "schedule": crontab(hour=4, minute=0),  # Executa diariamente às 4h00
+        "options": {
+            "expires": 60 * 60 * 2,  # Expira em 2 horas se não executar
         },
     },
 }

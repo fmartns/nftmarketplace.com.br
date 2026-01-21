@@ -441,14 +441,6 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
                 NFTs
               </Button>
               <Button
-                variant={activeTab === 'promocoes' ? 'default' : 'ghost'}
-                size="sm"
-                className={`${activeTab === 'promocoes' ? 'bg-[#FFE000] text-black hover:bg-[#FFD700]' : 'hover:bg-muted/50'}`}
-                onClick={() => onTabChange?.('promocoes')}
-              >
-                Promoções
-              </Button>
-              <Button
                 variant={activeTab === 'legacy' ? 'default' : 'ghost'}
                 size="sm"
                 className={`${activeTab === 'legacy' ? 'bg-[#FFE000] text-black hover:bg-[#FFD700]' : 'hover:bg-muted/50'}`}
@@ -625,16 +617,6 @@ export function Header({ onLogoClick, activeTab = 'home', onTabChange }: HeaderP
                   }}
                 >
                   NFTs
-                </Button>
-                <Button
-                  variant={activeTab === 'promocoes' ? 'default' : 'ghost'}
-                  className={`${activeTab === 'promocoes' ? 'bg-[#FFE000] text-black' : ''}`}
-                  onClick={() => {
-                    onTabChange?.('promocoes');
-                    setIsMenuOpen(false);
-                  }}
-                >
-                  Promoções
                 </Button>
                 <Button
                   variant={activeTab === 'legacy' ? 'default' : 'ghost'}

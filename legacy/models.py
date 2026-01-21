@@ -22,6 +22,10 @@ class Item(models.Model):
     last_price = models.DecimalField(max_digits=10, decimal_places=2)
     average_price = models.DecimalField(max_digits=10, decimal_places=2)
     available_offers = models.IntegerField()
+    can_buy_multiple = models.BooleanField(
+        default=False,
+        help_text="Permite compra em maior quantidade (legacy itens).",
+    )
     price_history = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

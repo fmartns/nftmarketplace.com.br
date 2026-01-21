@@ -135,6 +135,7 @@ class OrderItemCreateSerializer(serializers.Serializer):
         """Valida se o item existe e obtém o preço"""
         item_type = attrs.get("item_type")
         item_id = attrs.get("item_id")
+        quantity = attrs.get("quantity") or 1
 
         if item_type == "legacy":
             try:
@@ -143,6 +144,18 @@ class OrderItemCreateSerializer(serializers.Serializer):
 
                 item = Item.objects.get(id=item_id)
                 unit_price = item.last_price
+                if quantity > 1 and not getattr(item, "can_buy_multiple", False):
+                    raise serializers.ValidationError(
+                        "Este item legacy não permite compra em quantidade."
+                    )
+                if (
+                    item.available_offers
+                    and item.available_offers > 0
+                    and quantity > item.available_offers
+                ):
+                    raise serializers.ValidationError(
+                        f"Quantidade indisponível. Máximo: {item.available_offers}."
+                    )
             except ContentType.DoesNotExist:
                 raise serializers.ValidationError(
                     "Tipo de item 'legacy' não encontrado."

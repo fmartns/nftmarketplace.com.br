@@ -52,6 +52,7 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
   const [isProfileIncompleteDialogOpen, setIsProfileIncompleteDialogOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [purchaseQty, setPurchaseQty] = useState(1);
 
   // Load user profile
   useEffect(() => {
@@ -75,6 +76,7 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
         if (!mounted) return;
         setItem(data);
         setError(null);
+        setPurchaseQty(1);
       } catch (e: any) {
         if (!mounted) return;
         setError(e?.message || 'Falha ao carregar item');
@@ -182,6 +184,12 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
     return item.average_price || 0;
   }, [item]);
 
+  const maxQty = useMemo(() => {
+    if (!item) return 1;
+    if (item.available_offers && item.available_offers > 0) return item.available_offers;
+    return 99;
+  }, [item]);
+
   const itemUrl = `${window.location.origin}/legacy/${slug}`;
 
   const whatsappUrl = `https://wa.me/5511987120592?text=${encodeURIComponent(
@@ -267,6 +275,16 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
       return;
     }
 
+    const qty = item.can_buy_multiple ? purchaseQty : 1;
+    if (qty < 1) {
+      alert('Quantidade inválida. Selecione pelo menos 1 unidade.');
+      return;
+    }
+    if (item.available_offers && item.available_offers > 0 && qty > item.available_offers) {
+      alert(`Quantidade máxima disponível: ${item.available_offers}.`);
+      return;
+    }
+
     setIsPurchasing(true);
     try {
       // 1. Criar pedido
@@ -275,7 +293,7 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
           {
             item_type: 'legacy',
             item_id: item.id,
-            quantity: 1,
+            quantity: qty,
           },
         ],
         notes: `Compra do Legacy Item: ${item.name}`,
@@ -538,6 +556,46 @@ export function LegacyItemPage({ slug, onBack }: LegacyItemPageProps) {
                       <div className="text-xl font-bold text-[#FFE000]">R$ {formatBRL(item.last_price)}</div>
                     </div>
                   </div>
+
+                  {item.can_buy_multiple && (
+                    <div className="rounded-lg bg-black/20 p-3">
+                      <div className="text-xs text-gray-400 mb-2">Quantidade</div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          className="h-9 w-9 p-0"
+                          disabled={purchaseQty <= 1}
+                          onClick={() => setPurchaseQty(prev => Math.max(1, prev - 1))}
+                        >
+                          -
+                        </Button>
+                        <input
+                          type="number"
+                          min={1}
+                          max={maxQty}
+                          value={purchaseQty}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            if (!isFinite(v)) return;
+                            const clamped = Math.max(1, Math.min(maxQty, Math.floor(v)));
+                            setPurchaseQty(clamped);
+                          }}
+                          className="h-9 w-20 text-center rounded-md bg-black/30 border border-white/10 text-white"
+                        />
+                        <Button
+                          variant="outline"
+                          className="h-9 w-9 p-0"
+                          disabled={purchaseQty >= maxQty}
+                          onClick={() => setPurchaseQty(prev => Math.min(maxQty, prev + 1))}
+                        >
+                          +
+                        </Button>
+                        {item.available_offers > 0 && (
+                          <span className="text-xs text-gray-400">máx. {item.available_offers}</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3">
                     <Button 

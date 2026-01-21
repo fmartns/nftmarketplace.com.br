@@ -5,6 +5,7 @@ export interface Banner {
   id: number;
   title: string;
   image_url: string;
+  image_mobile?: string | null;
   order: number;
   created_at: string;
   updated_at: string;
@@ -127,6 +128,7 @@ export interface Banner {
   id: number;
   title: string;
   image_url: string;
+  image_mobile?: string | null;
   order: number;
   created_at: string;
   updated_at: string;
