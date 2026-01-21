@@ -10,6 +10,7 @@ export interface LegacyItem {
   last_price: number;
   average_price: number;
   available_offers: number;
+  can_buy_multiple?: boolean;
   price_history?: any;
   created_at: string;
   updated_at: string;

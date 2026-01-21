@@ -42,12 +42,18 @@ export function BannerDisplay({ className = '' }: BannerDisplayProps) {
   return (
     <div className={`text-center ${className}`}>
       <div className="relative w-full max-w-4xl mx-auto">
-        <img 
-          src={banner.image_url} 
-          alt={banner.title}
-          className="w-full rounded-lg shadow-lg"
-          style={{ maxHeight: '300px', objectFit: 'contain' }}
-        />
+        <picture>
+          <source
+            media="(max-width: 768px)"
+            srcSet={banner.image_mobile || banner.image_url}
+          />
+          <img 
+            src={banner.image_url} 
+            alt={banner.title}
+            className="w-full rounded-lg shadow-lg"
+            style={{ maxHeight: '300px', objectFit: 'contain' }}
+          />
+        </picture>
       </div>
     </div>
   );

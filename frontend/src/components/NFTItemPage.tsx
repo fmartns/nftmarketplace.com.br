@@ -47,13 +47,18 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
   const [isProfileIncompleteDialogOpen, setIsProfileIncompleteDialogOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [profileFetchedAt, setProfileFetchedAt] = useState<number | null>(null);
+  const [purchaseMessage, setPurchaseMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(null);
 
   // Load user profile
   useEffect(() => {
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     if (token) {
       fetchUserProfile()
-        .then(setUser)
+        .then((profile) => {
+          setUser(profile);
+          setProfileFetchedAt(Date.now());
+        })
         .catch(() => setUser(null));
     }
   }, []);
@@ -280,16 +285,51 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
     // Debug logging removed; keep hook in case of future side-effects
   }, [immutableSearchUrl]);
 
+  const displayPriceBRL = useMemo(() => {
+    // Usar sempre o preço do backend (que já vem com o menor preço da Immutable + markup aplicado)
+    // Isso garante consistência com o card que também usa last_price_brl do backend
+    const itemBRL = typeof item?.last_price_brl === 'number' ? item.last_price_brl : null;
+    return itemBRL ?? 0;
+  }, [item]);
+
   const lowestListingBRL = useMemo(() => {
     const valid = listings.filter(l => typeof l.price_brl === 'number' && isFinite(l.price_brl) && l.price_brl > 0);
     if (!valid.length) return null;
     return valid.reduce((min, l) => (l.price_brl < min ? l.price_brl : min), valid[0].price_brl);
   }, [listings]);
 
+  const adjustedListings = useMemo(() => {
+    if (!listings.length) return [];
+    const lowest = lowestListingBRL ?? 0;
+    const base = displayPriceBRL ?? 0;
+    if (lowest <= 0 || base <= 0) {
+      return listings.map(l => ({ ...l, display_price_brl: l.price_brl }));
+    }
+    const scale = base / lowest;
+    return listings.map(l => {
+      const scaled = +(l.price_brl * scale).toFixed(2);
+      return { ...l, display_price_brl: scaled };
+    });
+  }, [listings, lowestListingBRL, displayPriceBRL]);
+
+  const displayListings = useMemo(() => {
+    return adjustedListings.filter(
+      l => typeof l.display_price_brl === 'number' && isFinite(l.display_price_brl) && l.display_price_brl > 0
+    );
+  }, [adjustedListings]);
+
+  const lowestDisplayListingBRL = useMemo(() => {
+    if (!displayListings.length) return null;
+    return displayListings.reduce(
+      (min, l) => (l.display_price_brl < min ? l.display_price_brl : min),
+      displayListings[0].display_price_brl
+    );
+  }, [displayListings]);
+
   const chartData = useMemo(() => {
     // Base do gráfico alinhada ao preço exibido (prioriza menor listagem se existir, senão usa backend)
     const itemBRL = typeof item?.last_price_brl === 'number' ? item.last_price_brl : null;
-    const listBRL = lowestListingBRL ?? null;
+    const listBRL = lowestDisplayListingBRL ?? null;
     const base = (listBRL != null) ? listBRL : (itemBRL ?? 0);
     const mk = (v: number) => +v.toFixed(2);
     const b = base > 0 ? base : 10; // fallback baseline to avoid collapsed axis
@@ -311,13 +351,6 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
     const sum = chartData.reduce((s, d) => s + (d.price || 0), 0);
     return +(sum / chartData.length).toFixed(2);
   }, [chartData, sevenDayAvgBRL]);
-
-  const displayPriceBRL = useMemo(() => {
-    // Usar sempre o preço do backend (que já vem com o menor preço da Immutable + markup aplicado)
-    // Isso garante consistência com o card que também usa last_price_brl do backend
-    const itemBRL = typeof item?.last_price_brl === 'number' ? item.last_price_brl : null;
-    return itemBRL ?? 0;
-  }, [item]);
 
   // SEO para página do produto NFT
   const seoTitle = useMemo(() => {
@@ -406,31 +439,33 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
 
   // Função para comprar
   const handlePurchase = async () => {
+    if (isPurchasing) return;
+    setPurchaseMessage(null);
     // Verificar autenticação
     const token = localStorage.getItem('access_token') || localStorage.getItem('token');
     if (!token) {
-      alert('Você precisa estar autenticado para comprar. Faça login primeiro.');
+      setPurchaseMessage({
+        type: 'error',
+        text: 'Você precisa estar autenticado para comprar. Faça login primeiro.',
+      });
       return;
     }
 
     // Buscar perfil atualizado antes de validar
     let currentUser = user;
-    if (!currentUser) {
+    const now = Date.now();
+    const shouldRefreshProfile = !currentUser || !profileFetchedAt || (now - profileFetchedAt) > 30_000;
+    if (shouldRefreshProfile) {
       try {
         currentUser = await fetchUserProfile();
         setUser(currentUser);
+        setProfileFetchedAt(Date.now());
       } catch (error) {
-        alert('Erro ao buscar perfil. Tente fazer login novamente.');
+        setPurchaseMessage({
+          type: 'error',
+          text: 'Não foi possível carregar seu perfil agora. Tente novamente em instantes.',
+        });
         return;
-      }
-    } else {
-      // Sempre busca perfil atualizado para garantir dados mais recentes
-      try {
-        currentUser = await fetchUserProfile();
-        setUser(currentUser);
-      } catch (error) {
-        console.warn('Erro ao atualizar perfil, usando dados em cache:', error);
-        // Continua com o user atual se falhar
       }
     }
 
@@ -444,14 +479,38 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
 
     // Verificar se temos o item do backend
     if (!nftItem || !nftItem.id) {
-      alert('Aguarde o carregamento completo do item antes de comprar.');
+      setPurchaseMessage({
+        type: 'error',
+        text: 'Aguarde o carregamento completo do item antes de comprar.',
+      });
       return;
     }
 
     setIsPurchasing(true);
     try {
+      const withTimeout = <T,>(p: Promise<T>, ms = 12_000): Promise<T> =>
+        Promise.race([
+          p,
+          new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)) as Promise<T>,
+        ]);
+
+      const mapPurchaseError = (err: any): string => {
+        const status = err?.status;
+        const msg = String(err?.message || '');
+        if (msg.toLowerCase().includes('timeout')) {
+          return 'A compra está demorando mais que o esperado. Tente novamente em instantes.';
+        }
+        if (msg.toLowerCase().includes('failed to fetch')) {
+          return 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.';
+        }
+        if (status === 401) return 'Sua sessão expirou. Faça login novamente para continuar.';
+        if (status === 403) return 'Você não tem permissão para realizar esta compra.';
+        if (status === 400) return 'Não foi possível processar a compra. Verifique seus dados e tente novamente.';
+        return msg || 'Erro ao processar compra. Tente novamente.';
+      };
+
       // 1. Criar pedido
-      const order = await createOrder({
+      const order = await withTimeout(createOrder({
         items: [
           {
             item_type: 'nft',
@@ -460,28 +519,37 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
           },
         ],
         notes: `Compra do NFT: ${item?.name || productCode}`,
-      });
+      }), 12_000);
 
       // 2. Criar cobrança na AbacatePay
-      const billing = await createBilling({
+      const billing = await withTimeout(createBilling({
         order_id: order.order_id,
         description: `Compra do NFT: ${item?.name || productCode}`,
         metadata: {
           product_code: productCode,
           slug: slug,
         },
-      });
+      }), 12_000);
 
       // 3. Redirecionar para página de pagamento
       if (billing.payment_url) {
         window.open(billing.payment_url, '_blank', 'noopener,noreferrer');
+        setPurchaseMessage({
+          type: 'success',
+          text: 'Cobrança gerada. Abrimos o pagamento em uma nova aba.',
+        });
       } else {
-        alert('Cobrança criada com sucesso! Verifique seus pedidos para mais detalhes.');
+        setPurchaseMessage({
+          type: 'success',
+          text: 'Cobrança criada com sucesso! Verifique seus pedidos para mais detalhes.',
+        });
       }
     } catch (error: any) {
       console.error('Erro ao processar compra:', error);
-      const errorMessage = error?.message || 'Erro ao processar compra. Tente novamente.';
-      alert(errorMessage);
+      setPurchaseMessage({
+        type: 'error',
+        text: mapPurchaseError(error),
+      });
     } finally {
       setIsPurchasing(false);
     }
@@ -680,6 +748,17 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                         <MessageCircle className="w-5 h-5 mr-2" /> WhatsApp
                       </Button>
                     </div>
+                    {purchaseMessage && (
+                      <div
+                        className={`rounded-md px-3 py-2 text-sm ${
+                          purchaseMessage.type === 'success'
+                            ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                            : 'bg-red-500/10 text-red-300 border border-red-500/30'
+                        }`}
+                      >
+                        {purchaseMessage.text}
+                      </div>
+                    )}
                   </TabsContent>
                 </Tabs>
               </div>
@@ -708,11 +787,9 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {listings
-                      .filter(l => typeof l.price_brl === 'number' && isFinite(l.price_brl) && l.price_brl > 0)
-                      .map((l) => (
+                    {displayListings.map((l) => (
                       <div key={l.id} className="grid grid-cols-4 gap-2 items-center p-3 bg-black/20 rounded-lg">
-                        <div className="font-medium text-[#FFE000]">R$ {formatBRL(l.price_brl)}</div>
+                        <div className="font-medium text-[#FFE000]">R$ {formatBRL(l.display_price_brl)}</div>
                         <div>{l.quantity}</div>
                         <div className="hidden sm:block text-xs text-gray-400">{l.expiration ? new Date(l.expiration).toLocaleDateString('pt-BR') : '—'}</div>
                         <div className="hidden sm:block text-right">
@@ -720,7 +797,7 @@ export function NFTItemPage({ slug, productCode, onBack }: NFTItemPageProps) {
                         </div>
                       </div>
                     ))}
-                    {listings.filter(l => l.price_brl > 0).length === 0 && (
+                    {displayListings.length === 0 && (
                       <div className="text-center text-sm text-gray-400 py-6">Sem anúncios ativos para este item.</div>
                     )}
                   </div>

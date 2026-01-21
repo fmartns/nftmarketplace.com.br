@@ -133,6 +133,7 @@ class ItemAdmin(admin.ModelAdmin):
         "last_price",
         "average_price",
         "available_offers",
+        "can_buy_multiple",
         "created_at",
         "updated_at",
     ]
@@ -152,6 +153,12 @@ class ItemAdmin(admin.ModelAdmin):
             "Preços",
             {
                 "fields": ("last_price", "average_price", "available_offers"),
+            },
+        ),
+        (
+            "Compra",
+            {
+                "fields": ("can_buy_multiple",),
             },
         ),
         (

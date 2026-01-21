@@ -74,13 +74,6 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
         logger.warning("Assinatura não fornecida no header")
         return False
 
-    # Log da chave pública (apenas tamanho para debug)
-    logger.info(
-        f"HMAC Validation - Public key length: {len(ABACATEPAY_PUBLIC_KEY)}, "
-        f"Public key (first 20): {ABACATEPAY_PUBLIC_KEY[:20]}..., "
-        f"Public key (last 20): ...{ABACATEPAY_PUBLIC_KEY[-20:]}"
-    )
-
     try:
         # IMPORTANTE: Usar o corpo exatamente como recebido (sem modificações)
         # Se raw_body já é string, garantir que está em UTF-8
@@ -92,17 +85,17 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
         # Verificar se a chave pública está correta (não truncada)
         if len(ABACATEPAY_PUBLIC_KEY) < 100:
             logger.error(
-                f"ABACATEPAY_PUBLIC_KEY parece estar truncada ou incorreta! "
-                f"Length: {len(ABACATEPAY_PUBLIC_KEY)} (esperado ~200+ caracteres). "
-                f"Primeiros 50 chars: {ABACATEPAY_PUBLIC_KEY[:50]}..."
+                "ABACATEPAY_PUBLIC_KEY parece estar truncada ou incorreta. "
+                "Length: %s (esperado ~200+ caracteres).",
+                len(ABACATEPAY_PUBLIC_KEY),
             )
-            # Tentar recarregar do settings diretamente
+            # Tentar recarregar do settings diretamente (sem logar conteúdo)
             _reload_key = getattr(settings, "ABACATEPAY_PUBLIC_KEY", None)
             if _reload_key:
                 _reload_key = _reload_key.strip().replace("\n", "").replace("\r", "")
                 logger.error(
-                    f"Tentando recarregar do settings - Length: {len(_reload_key)}, "
-                    f"Primeiros 50: {_reload_key[:50]}..."
+                    "Tentando recarregar ABACATEPAY_PUBLIC_KEY do settings. Length: %s",
+                    len(_reload_key),
                 )
 
         # Limpar a assinatura recebida (remover espaços, quebras de linha, etc)
@@ -119,13 +112,12 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
         # Converte para base64 (conforme documentação)
         expected_sig = base64.b64encode(hmac_digest).decode("utf-8")
 
-        # Log detalhado para debug em produção
+        # Log somente tamanhos (evitar vazamento de dados sensíveis)
         logger.info(
-            f"HMAC Validation - Body length: {len(body_buffer)}, "
-            f"Expected signature length: {len(expected_sig)}, "
-            f"Received signature length: {len(signature_clean)}, "
-            f"Expected (first 30): {expected_sig[:30]}..., "
-            f"Received (first 30): {signature_clean[:30] if len(signature_clean) > 30 else signature_clean}..."
+            "HMAC Validation - Body length: %s, Expected signature length: %s, Received signature length: %s",
+            len(body_buffer),
+            len(expected_sig),
+            len(signature_clean),
         )
 
         # Converte para bytes para comparação timing-safe
@@ -142,10 +134,9 @@ def verify_webhook_signature(raw_body: str, signature_from_header: str) -> bool:
         is_valid = hmac.compare_digest(expected_bytes, received_bytes)
         if not is_valid:
             logger.warning(
-                f"HMAC signature mismatch. Body length: {len(body_buffer)}, "
-                f"Public key length: {len(ABACATEPAY_PUBLIC_KEY)}, "
-                f"Expected signature: {expected_sig}, "
-                f"Received signature: {signature_clean}"
+                "HMAC signature mismatch. Body length: %s, Public key length: %s",
+                len(body_buffer),
+                len(ABACATEPAY_PUBLIC_KEY),
             )
         else:
             logger.info("HMAC signature válida")
@@ -167,7 +158,7 @@ def verify_webhook_secret(request) -> bool:
     """
     if not ABACATEPAY_WEBHOOK_SECRET:
         logger.warning("ABACATEPAY_WEBHOOK_SECRET não configurado")
-        return True
+        return False
 
     webhook_secret = request.GET.get("webhookSecret")
     if not webhook_secret:
@@ -213,17 +204,12 @@ def AbacatePayWebhookView(request):
             or request.META.get("HTTP_X_WEBHOOK_signature", "")
         ).strip()
 
-        # Log detalhado para debug em produção
-        all_headers = dict(request.headers)
-        meta_headers = {k: v for k, v in request.META.items() if k.startswith("HTTP_")}
+        # Log mínimo para produção (evitar vazamento de payload e assinatura)
         logger.info(
-            f"Webhook recebido - Body length: {len(raw_body_bytes)}, "
-            f"Body preview: {raw_body_str[:200]}..., "
-            f"Signature present: {bool(signature)}, "
-            f"Signature length: {len(signature) if signature else 0}, "
-            f"Signature value: {signature[:50] if signature else 'N/A'}..., "
-            f"Headers with 'webhook': {[k for k in all_headers.keys() if 'webhook' in k.lower()]}, "
-            f"META headers with 'WEBHOOK': {[k for k in meta_headers.keys() if 'WEBHOOK' in k]}"
+            "Webhook recebido - Body length: %s, Signature present: %s, Signature length: %s",
+            len(raw_body_bytes),
+            bool(signature),
+            len(signature) if signature else 0,
         )
 
         # Validação em duas camadas (conforme documentação):
@@ -236,8 +222,8 @@ def AbacatePayWebhookView(request):
             signature_valid = verify_webhook_signature(raw_body_str, signature)
             if not signature_valid:
                 logger.warning(
-                    f"Assinatura HMAC inválida. Body preview: {raw_body_str[:100]}..., "
-                    f"Signature: {signature[:50] if len(signature) > 50 else signature}..."
+                    "Assinatura HMAC inválida. IP: %s",
+                    request.META.get("REMOTE_ADDR"),
                 )
         else:
             # Se não houver assinatura, valida via secret na URL
@@ -249,21 +235,13 @@ def AbacatePayWebhookView(request):
                 logger.warning("Secret do webhook inválido ou ausente")
 
         if not signature_valid:
-            # Em produção, se a assinatura HMAC falhar mas houver secret na URL válido,
-            # aceitar o webhook (fallback de segurança)
-            if signature and verify_webhook_secret(request):
-                logger.warning(
-                    f"Assinatura HMAC falhou, mas secret na URL é válido. "
-                    f"Aceitando webhook como fallback. IP: {request.META.get('REMOTE_ADDR')}"
-                )
-                signature_valid = True
-            else:
-                logger.warning(
-                    f"Webhook rejeitado - IP: {request.META.get('REMOTE_ADDR')}, "
-                    f"Signature presente: {bool(signature)}, "
-                    f"Secret válido: {verify_webhook_secret(request)}"
-                )
-                return JsonResponse({"error": "Invalid signature"}, status=401)
+            logger.warning(
+                "Webhook rejeitado - IP: %s, Signature presente: %s, Secret válido: %s",
+                request.META.get("REMOTE_ADDR"),
+                bool(signature),
+                verify_webhook_secret(request),
+            )
+            return JsonResponse({"error": "Invalid signature"}, status=401)
 
         # Parse do JSON após validação
         data = json.loads(raw_body_str)

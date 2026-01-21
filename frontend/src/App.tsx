@@ -6,7 +6,6 @@ import { AllItemsMarketplace } from './components/AllItemsMarketplace';
 import { AllCollectionsSection } from './components/AllCollectionsSection';
 import { CollectionDetailSection } from './components/CollectionDetailSection';
 import { NFTItemPage } from './components/NFTItemPage';
-import { PromotionsPage } from './components/PromotionsPage';
 import { LegacyListPage } from './components/LegacyListPage';
 import { LegacyItemPage } from './components/LegacyItemPage';
 import { UserSettingsPage } from './components/UserSettingsPage';
@@ -50,7 +49,6 @@ export default function App() {
   const activeTab = useMemo(() => {
     if (path === '/' || path === '/home') return 'home';
     if (path === '/nfts') return 'nfts';
-    if (path === '/promocoes') return 'promocoes';
     if (path === '/legacy' || path.startsWith('/legacy/')) return 'legacy';
     if (path === '/collections') return 'collections';
     return 'collections'; // highlight Collections when viewing a collection slug
@@ -61,7 +59,6 @@ export default function App() {
     if (tab === 'home') navigate('/');
     else if (tab === 'nfts') navigate('/nfts');
     else if (tab === 'collections') navigate('/collections');
-    else if (tab === 'promocoes') navigate('/promocoes');
     else if (tab === 'legacy') navigate('/legacy');
   };
 
@@ -74,7 +71,7 @@ export default function App() {
     return null;
   }, [path]);
 
-  // Match routes: /, /collections, /promocoes, /:slug, /:slug/:productCode
+  // Match routes: /, /collections, /:slug, /:slug/:productCode
   const itemRoute = useMemo(() => {
     // Skip if it's a payment route
     if (paymentRoute) return null;
@@ -90,7 +87,7 @@ export default function App() {
   const slugFromPath = useMemo(() => {
     const p = (path || '/').replace(/\/+$/, ''); // remove trailing slash
     if (!p || p === '/') return null;
-    if (p === '/collections' || p === '/promocoes' || p === '/home' || p === '/nfts' || p === '/legacy' || p === '/configuracoes' || p === '/pedidos' || p.startsWith('/legacy/') || p.startsWith('/payment/')) return null;
+    if (p === '/collections' || p === '/home' || p === '/nfts' || p === '/legacy' || p === '/configuracoes' || p === '/pedidos' || p.startsWith('/legacy/') || p.startsWith('/payment/')) return null;
     // Treat any single-segment path as a collection slug
     const segments = p.split('/').filter(Boolean);
     if (segments.length === 1) return segments[0];
@@ -116,7 +113,7 @@ export default function App() {
       ? 'NFT Marketplace - Compre e Venda NFTs Habbo'
       : undefined,
     description: isHome
-      ? 'Marketplace de NFTs Habbo. Compre e venda NFTs únicos com segurança. Explore coleções, itens raros, promoções e muito mais.'
+      ? 'Marketplace de NFTs Habbo. Compre e venda NFTs únicos com segurança. Explore coleções, itens raros e muito mais.'
       : undefined,
     url: typeof window !== 'undefined' ? window.location.href : undefined,
   });
@@ -154,8 +151,6 @@ export default function App() {
           <LegacyListPage />
         ) : path === '/collections' ? (
           <AllCollectionsSection onCollectionSelect={(slug) => navigate(`/${slug}`)} />
-        ) : path === '/promocoes' ? (
-          <PromotionsPage />
         ) : path === '/configuracoes' ? (
           <UserSettingsPage />
         ) : path === '/pedidos' ? (

@@ -25,6 +25,7 @@ class LegacyItemDetailsSerializer(serializers.ModelSerializer):
             "last_price",
             "average_price",
             "available_offers",
+            "can_buy_multiple",
             "image_url",
             "price_history",
             "created_at",
@@ -77,6 +78,7 @@ class LegacyItemCreateSerializer(serializers.ModelSerializer):
             "last_price",
             "average_price",
             "available_offers",
+            "can_buy_multiple",
             "image_url",
             "price_history",
             "created_at",
@@ -120,6 +122,7 @@ class LegacyItemListSerializer(serializers.ModelSerializer):
             "last_price",
             "average_price",
             "available_offers",
+            "can_buy_multiple",
         ]
 
     def to_representation(self, instance):

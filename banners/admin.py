@@ -18,8 +18,8 @@ class BannerAdmin(admin.ModelAdmin):
         (
             "Imagem",
             {
-                "fields": ("image_url",),
-                "description": "Cole a URL da imagem do banner (ex: https://exemplo.com/imagem.jpg). Formatos recomendados: JPG, PNG, WebP.",
+                "fields": ("image_url", "image_mobile"),
+                "description": "Cole a URL da imagem do banner (ex: https://exemplo.com/imagem.jpg). Formatos recomendados: JPG, PNG, WebP. A imagem mobile é opcional.",
             },
         ),
     )

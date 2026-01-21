@@ -19,6 +19,13 @@ class Banner(models.Model):
         default="https://via.placeholder.com/800x300/FFE000/000000?text=Banner+Placeholder",
     )
 
+    image_mobile = models.URLField(
+        max_length=500,
+        verbose_name="URL da Imagem (Mobile)",
+        help_text="URL da imagem do banner para dispositivos móveis (opcional).",
+        blank=True,
+    )
+
     is_active = models.BooleanField(
         default=True,
         verbose_name="Ativo",
